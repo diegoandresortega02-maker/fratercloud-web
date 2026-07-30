@@ -2,6 +2,10 @@ import type { Workbook, Worksheet, Row } from 'exceljs'
 import {
   getAllBlockedDates,
   getAllMonthlyDues,
+  getBarCashBalance,
+  getBarCashCounts,
+  getBarItems,
+  getBarMovements,
   getAllPlanInstallments,
   getAllReceipts,
   getAllReservations,
@@ -189,19 +193,37 @@ export async function exportFraternityWorkbook(): Promise<void> {
   // exceljs se carga aquí (import dinámico) para que no entre al bundle inicial.
   const ExcelJS = await import('exceljs')
 
-  const [fraternity, members, dues, installments, transactions, events, reservations, blockedDates, turns, receipts] =
-    await Promise.all([
-      getMyFraternity(),
-      getFraternityMembers(),
-      getAllMonthlyDues(),
-      getAllPlanInstallments(),
-      getAllTransactions(),
-      getEvents(),
-      getAllReservations(),
-      getAllBlockedDates(),
-      getAllTurns(),
-      getAllReceipts(),
-    ])
+  const [
+    fraternity,
+    members,
+    dues,
+    installments,
+    transactions,
+    events,
+    reservations,
+    blockedDates,
+    turns,
+    receipts,
+    barItems,
+    barMovements,
+    barCashCounts,
+    barBalance,
+  ] = await Promise.all([
+    getMyFraternity(),
+    getFraternityMembers(),
+    getAllMonthlyDues(),
+    getAllPlanInstallments(),
+    getAllTransactions(),
+    getEvents(),
+    getAllReservations(),
+    getAllBlockedDates(),
+    getAllTurns(),
+    getAllReceipts(),
+    getBarItems(),
+    getBarMovements(),
+    getBarCashCounts(),
+    getBarCashBalance(),
+  ])
 
   // Rosters/contribuciones de cada evento (pocos eventos, consulta por evento es aceptable)
   const eventDetails = await Promise.all(
@@ -254,6 +276,9 @@ export async function exportFraternityWorkbook(): Promise<void> {
   buildTurnos(wb, turns)
   buildCumpleanos(wb, sortedMembers)
   buildRecibos(wb, receipts)
+  buildBarInventario(wb, barItems)
+  buildBarMovimientos(wb, barMovements)
+  buildBarArqueos(wb, barCashCounts, barBalance)
 
   const buffer = await wb.xlsx.writeBuffer()
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -991,4 +1016,157 @@ function buildRecibos(wb: Workbook, receipts: any[]) {
     )
   }
   addTotalsRow(ws, cols, first, ws.rowCount)
+}
+
+// ---------- 14. Bar inventario ----------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildBarInventario(wb: Workbook, items: any[]) {
+  const ws = wb.addWorksheet('Bar inventario')
+  const cols: Col[] = [
+    { header: 'Ítem', width: 30 },
+    { header: 'Categoría', width: 14 },
+    { header: 'Unidad', width: 12 },
+    { header: 'Costo (Bs)', width: 14, money: true },
+    { header: 'Precio venta (Bs)', width: 16, money: true },
+    { header: 'Margen (Bs)', width: 14, money: true },
+    { header: 'Stock', width: 10, align: 'right' },
+    { header: 'Valor stock (Bs)', width: 16, money: true },
+    { header: 'Activo', width: 10, align: 'center' },
+  ]
+  setupSheet(ws, cols, { freezeCols: 1 })
+  const first = ws.rowCount + 1
+  for (const it of items) {
+    const cost = Number(it.cost_price)
+    const sale = Number(it.sale_price)
+    const stock = Number(it.stock)
+    const r = ws.addRow([
+      it.name,
+      it.category,
+      it.unit,
+      cost,
+      sale,
+      Math.round((sale - cost) * 100) / 100,
+      stock,
+      Math.round(stock * cost * 100) / 100,
+      it.is_active ? 'Sí' : 'No',
+    ])
+    styleDataRow(r, cols)
+    if (stock <= Number(it.low_stock_alert)) {
+      r.getCell(7).font = { name: FONT, size: 10, bold: true, color: { argb: RED } }
+    }
+  }
+  addTotalsRow(ws, cols, first, ws.rowCount)
+}
+
+// ---------- 15. Bar movimientos ----------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildBarMovimientos(wb: Workbook, movements: any[]) {
+  const ws = wb.addWorksheet('Bar movimientos')
+  const cols: Col[] = [
+    { header: 'Fecha', width: 12, align: 'center' },
+    { header: 'Tipo', width: 10, align: 'center' },
+    { header: 'Ítem', width: 28 },
+    { header: 'Cantidad', width: 10, align: 'right' },
+    { header: 'P. unitario (Bs)', width: 15, money: true },
+    { header: 'Total (Bs)', width: 14, money: true },
+    { header: 'Ganancia (Bs)', width: 14, money: true },
+    { header: 'Forma de pago', width: 14, align: 'center' },
+    { header: 'Fraterno', width: 26 },
+    { header: 'Cobrado', width: 10, align: 'center' },
+    { header: 'Efecto en caja (Bs)', width: 17, money: true },
+    { header: 'Notas', width: 36 },
+  ]
+  setupSheet(ws, cols, { freezeCols: 2 })
+
+  const sorted = [...movements].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+  const first = ws.rowCount + 1
+  for (const m of sorted) {
+    const qty = Number(m.quantity)
+    const unit = Number(m.unit_price)
+    const cost = Number(m.bar_items?.cost_price ?? 0)
+    const profit = m.kind === 'venta' ? Math.round((unit - cost) * qty * 100) / 100 : null
+    const r = ws.addRow([
+      String(m.date).slice(0, 10),
+      m.kind === 'venta' ? 'Venta' : m.kind === 'compra' ? 'Compra' : 'Ajuste',
+      m.bar_items?.name ?? '—',
+      qty,
+      unit,
+      Number(m.total),
+      profit,
+      m.payment_mode === 'contado' ? 'Contado' : m.payment_mode === 'cuenta' ? 'A cuenta' : '',
+      m.member?.full_name ?? '',
+      m.payment_mode === 'cuenta' ? (m.settled ? 'Sí' : 'No') : '',
+      Number(m.cash_delta),
+      m.notes ?? '',
+    ])
+    styleDataRow(r, cols)
+    r.getCell(2).font = {
+      name: FONT,
+      size: 10,
+      bold: true,
+      color: { argb: m.kind === 'venta' ? GREEN : m.kind === 'compra' ? RED : NAVY },
+    }
+    if (m.payment_mode === 'cuenta' && !m.settled) {
+      r.getCell(10).font = { name: FONT, size: 10, bold: true, color: { argb: RED } }
+    }
+  }
+  addTotalsRow(ws, cols, first, ws.rowCount)
+}
+
+// ---------- 16. Bar arqueos ----------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildBarArqueos(wb: Workbook, counts: any[], balance: number) {
+  const ws = wb.addWorksheet('Bar arqueos')
+  ws.columns = [{ width: 14 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 46 }]
+
+  const title = ws.addRow(['CONTROL DE LA CAJA DEL BAR'])
+  title.font = { name: FONT, bold: true, size: 14, color: { argb: NAVY } }
+  ws.mergeCells(title.number, 1, title.number, 5)
+
+  ws.addRow([])
+  const bal = ws.addRow(['Saldo actual de la caja del bar', balance])
+  bal.font = { name: FONT, bold: true, size: 11 }
+  bal.getCell(2).numFmt = MONEY
+
+  addSectionTitle(ws, 'ARQUEOS REGISTRADOS', 5)
+  const cols: Col[] = [
+    { header: 'Fecha', width: 14, align: 'center' },
+    { header: 'Esperado (Bs)', width: 18, money: true },
+    { header: 'Contado (Bs)', width: 18, money: true },
+    { header: 'Diferencia (Bs)', width: 18, money: true },
+    { header: 'Observaciones', width: 46 },
+  ]
+  addSubHeader(ws, cols)
+  if (counts.length === 0) {
+    const r = ws.addRow(['Sin arqueos registrados.'])
+    r.font = { name: FONT, size: 10, color: { argb: 'FF6B7280' } }
+  }
+  for (const c of [...counts].sort((a, b) => String(a.date).localeCompare(String(b.date)))) {
+    const diff = Number(c.difference)
+    const r = ws.addRow([
+      String(c.date).slice(0, 10),
+      Number(c.expected_cash),
+      Number(c.actual_cash),
+      diff,
+      c.notes ?? '',
+    ])
+    styleDataRow(r, cols)
+    const cell = r.getCell(4)
+    cell.font = { name: FONT, size: 10, bold: true, color: { argb: diff === 0 ? GREEN : RED } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: diff === 0 ? GREEN_BG : RED_BG } }
+  }
+
+  addSectionTitle(ws, 'NOTA', 5)
+  for (const n of [
+    'La caja del bar es independiente de las arcas de la fraternidad.',
+    'Solo se traspasa a las arcas mediante el "Traspaso anual", que queda registrado en ambos lados.',
+    'Una diferencia distinta de cero en un arqueo debe estar explicada en las observaciones.',
+  ]) {
+    const r = ws.addRow([n])
+    r.font = { name: FONT, size: 9, color: { argb: 'FF6B7280' } }
+    ws.mergeCells(r.number, 1, r.number, 5)
+  }
 }

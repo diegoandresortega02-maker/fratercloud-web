@@ -1,4 +1,6 @@
-export type FraternityRole = 'admin' | 'member'
+export type FraternityRole = 'admin' | 'member' | 'bar'
+export type BarMovementKind = 'compra' | 'venta' | 'ajuste'
+export type BarPaymentMode = 'contado' | 'cuenta'
 export type MemberStatus = 'activo' | 'invitado' | 'retirado'
 export type TurnStatus = 'pendiente' | 'ok' | 'suspendido'
 export type DueStatus = 'pendiente' | 'pagado'
@@ -212,4 +214,79 @@ export interface Receipt {
   related_target_id: string | null
   created_at: string
   fraternity_users?: { full_name: string }
+}
+
+// ---------- Bar ----------
+
+export interface BarItem {
+  id: string
+  fraternity_id: string
+  name: string
+  category: string
+  unit: string
+  cost_price: number
+  sale_price: number
+  stock: number
+  low_stock_alert: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface BarMovement {
+  id: string
+  fraternity_id: string
+  kind: BarMovementKind
+  item_id: string | null
+  quantity: number
+  unit_price: number
+  total: number
+  payment_mode: BarPaymentMode | null
+  member_id: string | null
+  settled: boolean
+  cash_delta: number
+  date: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  bar_items?: { name: string; cost_price: number } | null
+  member?: { full_name: string } | null
+}
+
+export interface BarCashCount {
+  id: string
+  fraternity_id: string
+  date: string
+  expected_cash: number
+  actual_cash: number
+  difference: number
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface BarStockCount {
+  id: string
+  fraternity_id: string
+  date: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  items?: BarStockCountItem[]
+}
+
+export interface BarStockCountItem {
+  id: string
+  count_id: string
+  item_id: string
+  expected_stock: number
+  counted_stock: number
+  difference: number
+  reason: string | null
+  bar_items?: { name: string } | null
+}
+
+export interface BarPendingMember {
+  member_id: string
+  full_name: string
+  pending: number
 }

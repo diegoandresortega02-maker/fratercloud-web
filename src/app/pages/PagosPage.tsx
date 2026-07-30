@@ -9,6 +9,7 @@ import {
   getMyPaymentPlans,
   getMyPaymentSubmissions,
   getMyReceipts,
+  getBarPendingByMember,
   getPlanInstallments,
   uploadPaymentProof,
   type DebtSummary,
@@ -39,18 +40,20 @@ export default function PagosPage() {
   const [installmentsByPlan, setInstallmentsByPlan] = useState<Record<string, PaymentPlanInstallment[]>>({})
   const [submissions, setSubmissions] = useState<PaymentSubmission[]>([])
   const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [barPending, setBarPending] = useState(0)
   const [uploadTarget, setUploadTarget] = useState<{ type: TargetKind; id: string; amount: number } | null>(null)
   const [loading, setLoading] = useState(true)
 
   async function reload() {
     if (!fraternityUser) return
-    const [f, s, d, p, subs, rec] = await Promise.all([
+    const [f, s, d, p, subs, rec, barPend] = await Promise.all([
       getMyFraternity(),
       getMemberDebtSummary(fraternityUser.id),
       getMyMonthlyDues(),
       getMyPaymentPlans(),
       getMyPaymentSubmissions(),
       getMyReceipts(),
+      getBarPendingByMember(),
     ])
     setFraternity(f)
     setSummary(s)
@@ -58,6 +61,7 @@ export default function PagosPage() {
     setPlans(p)
     setSubmissions(subs)
     setReceipts(rec)
+    setBarPending(barPend.find((b) => b.member_id === fraternityUser.id)?.pending ?? 0)
     const installs = await Promise.all(p.map((plan) => getPlanInstallments(plan.id)))
     setInstallmentsByPlan(Object.fromEntries(p.map((plan, i) => [plan.id, installs[i]])))
   }
@@ -156,6 +160,21 @@ export default function PagosPage() {
               </div>
             </div>
           ))}
+        </section>
+      )}
+
+      {barPending > 0 && (
+        <section className="mb-6">
+          <h2 className="text-sm font-semibold text-ink mb-3">Consumo del bar</h2>
+          <div className="bg-white rounded-card border border-surface-border p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-ink">Pendiente de pago al bar</p>
+              <p className="text-xs text-slate-400">
+                Consumos anotados a tu cuenta. Se pagan directamente al encargado del bar y no afectan tus reservas.
+              </p>
+            </div>
+            <span className="text-lg font-semibold text-brand-gold whitespace-nowrap">Bs {formatMoney(barPending)}</span>
+          </div>
         </section>
       )}
 

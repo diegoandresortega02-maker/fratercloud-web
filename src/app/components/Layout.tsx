@@ -9,6 +9,7 @@ const navItems = [
   { to: '/pagos', label: 'Pagos' },
   { to: '/reservas', label: 'Reservas' },
   { to: '/turnos', label: 'Turnos' },
+  { to: '/bar', label: 'Bar' },
   { to: '/cumpleanos', label: 'Cumpleaños' },
   { to: '/eventos', label: 'Eventos', adminOnly: true },
   { to: '/deudores', label: 'Deudores', adminOnly: true },

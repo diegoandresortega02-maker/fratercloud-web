@@ -200,6 +200,7 @@ export default function FraternosPage() {
                 className="rounded-control border border-surface-border px-2 py-1 text-sm disabled:opacity-50"
               >
                 <option value="member">Fraterno</option>
+                <option value="bar">Encargado de bar</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>

@@ -1,8 +1,16 @@
 import { supabase } from './supabaseClient'
 import type {
+  BarCashCount,
+  BarItem,
+  BarMovement,
+  BarMovementKind,
+  BarPaymentMode,
+  BarPendingMember,
+  BarStockCount,
   BlockedDate,
   DueStatus,
   Fraternity,
+  FraternityRole,
   FraternityUser,
   MemberStatus,
   MonthlyDue,
@@ -69,7 +77,7 @@ export async function getFraternityMembers(): Promise<FraternityUser[]> {
   return data
 }
 
-export async function updateMemberRole(memberId: string, role: 'admin' | 'member') {
+export async function updateMemberRole(memberId: string, role: FraternityRole) {
   const { error } = await supabase.from('fraternity_users').update({ role }).eq('id', memberId)
   if (error) throw error
 }
@@ -782,4 +790,213 @@ export async function getAllTurns(): Promise<Turn[]> {
     .order('date', { ascending: false })
   if (error) throw error
   return data
+}
+
+// ---------- Bar ----------
+
+export async function getBarItems(): Promise<BarItem[]> {
+  const { data, error } = await supabase.from('bar_items').select('*').order('name')
+  if (error) throw error
+  return data
+}
+
+export type BarItemInput = {
+  name: string
+  category?: string
+  unit?: string
+  cost_price: number
+  sale_price: number
+  low_stock_alert?: number
+}
+
+export async function createBarItem(input: BarItemInput): Promise<BarItem> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const { data, error } = await supabase
+    .from('bar_items')
+    .insert({ ...input, fraternity_id: fraternityId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateBarItem(id: string, input: Partial<BarItemInput> & { is_active?: boolean }) {
+  const { error } = await supabase.from('bar_items').update(input).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteBarItem(id: string) {
+  const { error } = await supabase.from('bar_items').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function getBarMovements(fromDate?: string, toDate?: string): Promise<BarMovement[]> {
+  // member_id y created_by apuntan ambos a fraternity_users → hay que calificar el join.
+  let q = supabase
+    .from('bar_movements')
+    .select('*, bar_items(name, cost_price), member:fraternity_users!bar_movements_member_id_fkey(full_name)')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (fromDate) q = q.gte('date', fromDate)
+  if (toDate) q = q.lte('date', toDate)
+  const { data, error } = await q
+  if (error) throw error
+  return data as unknown as BarMovement[]
+}
+
+export type BarMovementInput = {
+  kind: BarMovementKind
+  item_id?: string | null
+  quantity: number
+  unit_price: number
+  payment_mode?: BarPaymentMode | null
+  member_id?: string | null
+  date: string
+  notes?: string | null
+  cash_delta?: number
+}
+
+export async function createBarMovement(input: BarMovementInput): Promise<BarMovement> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const memberId = await getMyMemberIdOrThrow()
+  const { data, error } = await supabase
+    .from('bar_movements')
+    .insert({ ...input, fraternity_id: fraternityId, created_by: memberId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteBarMovement(id: string) {
+  const { error } = await supabase.from('bar_movements').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function getBarCashBalance(): Promise<number> {
+  const { data, error } = await supabase.rpc('bar_cash_balance')
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
+export async function getBarPendingByMember(): Promise<BarPendingMember[]> {
+  const { data, error } = await supabase.rpc('bar_pending_by_member')
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data as any[]) ?? []).map((r) => ({
+    member_id: r.member_id,
+    full_name: r.full_name,
+    pending: Number(r.pending),
+  }))
+}
+
+export async function settleBarMember(memberId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('bar_settle_member', { p_member_id: memberId })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
+export async function getBarCashCounts(): Promise<BarCashCount[]> {
+  const { data, error } = await supabase
+    .from('bar_cash_counts')
+    .select('*')
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function createBarCashCount(input: {
+  date: string
+  expected_cash: number
+  actual_cash: number
+  notes?: string | null
+}): Promise<BarCashCount> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const memberId = await getMyMemberIdOrThrow()
+  const { data, error } = await supabase
+    .from('bar_cash_counts')
+    .insert({ ...input, fraternity_id: fraternityId, created_by: memberId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function getBarStockCounts(): Promise<BarStockCount[]> {
+  const { data, error } = await supabase
+    .from('bar_stock_counts')
+    .select('*, items:bar_stock_count_items(*, bar_items(name))')
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data as unknown as BarStockCount[]
+}
+
+/**
+ * Registra un conteo físico. Por cada ítem con diferencia crea también un
+ * movimiento 'ajuste' para que el stock del sistema coincida con lo contado.
+ */
+export async function createBarStockCount(
+  date: string,
+  notes: string | null,
+  rows: { item_id: string; expected_stock: number; counted_stock: number; reason?: string | null }[],
+): Promise<void> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const memberId = await getMyMemberIdOrThrow()
+
+  const { data: count, error: countError } = await supabase
+    .from('bar_stock_counts')
+    .insert({ fraternity_id: fraternityId, date, notes, created_by: memberId })
+    .select()
+    .single()
+  if (countError) throw countError
+
+  const { error: itemsError } = await supabase.from('bar_stock_count_items').insert(
+    rows.map((r) => ({
+      fraternity_id: fraternityId,
+      count_id: count.id,
+      item_id: r.item_id,
+      expected_stock: r.expected_stock,
+      counted_stock: r.counted_stock,
+      reason: r.reason ?? null,
+    })),
+  )
+  if (itemsError) throw itemsError
+
+  const adjustments = rows
+    .filter((r) => r.counted_stock !== r.expected_stock)
+    .map((r) => ({
+      fraternity_id: fraternityId,
+      kind: 'ajuste' as const,
+      item_id: r.item_id,
+      quantity: r.counted_stock - r.expected_stock,
+      unit_price: 0,
+      cash_delta: 0,
+      date,
+      notes: r.reason ? `Arqueo de stock: ${r.reason}` : 'Ajuste por conteo físico',
+      created_by: memberId,
+    }))
+  if (adjustments.length > 0) {
+    const { error } = await supabase.from('bar_movements').insert(adjustments)
+    if (error) throw error
+  }
+}
+
+export async function barAnnualTransfer(amount: number, account: string, date: string): Promise<string> {
+  const { data, error } = await supabase.rpc('bar_annual_transfer', {
+    p_amount: amount,
+    p_account: account,
+    p_date: date,
+  })
+  if (error) throw error
+  return data
+}
+
+/**
+ * El encargado de bar no tiene permiso de escritura sobre `fraternities`
+ * (RLS: solo admin), y un UPDATE bloqueado por RLS no lanza error —
+ * simplemente no afecta filas. Por eso va por RPC, que valida el rol.
+ */
+export async function updateBarOpeningBalance(amount: number) {
+  const { error } = await supabase.rpc('set_bar_opening_balance', { p_amount: amount })
+  if (error) throw error
 }

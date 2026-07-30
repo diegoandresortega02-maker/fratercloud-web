@@ -17,6 +17,7 @@ import TurnosPage from './pages/TurnosPage'
 import EventosPage from './pages/EventosPage'
 import PrintReceiptView from './pages/PrintReceiptView'
 import PrintMemberStatementView from './pages/PrintMemberStatementView'
+import BarPage from './pages/BarPage'
 import RecibosPage from './pages/RecibosPage'
 
 function postAuthRedirect(fraternityUser: unknown) {
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/reservas" element={<ReservasPage />} />
         <Route path="/cumpleanos" element={<CumpleanosPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
+        <Route path="/bar" element={<BarPage />} />
         <Route path="/eventos" element={<RequireAdmin><EventosPage /></RequireAdmin>} />
         <Route path="/deudores" element={<RequireAdmin><DeudoresPage /></RequireAdmin>} />
         <Route path="/aprobaciones" element={<RequireAdmin><AprobacionesPage /></RequireAdmin>} />
