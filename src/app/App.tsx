@@ -47,6 +47,15 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/** El bar solo lo ven el encargado de bar y el administrador. */
+function RequireBar({ children }: { children: React.ReactNode }) {
+  const { fraternityUser, loading } = useAuth()
+  if (loading) return <FullscreenLoader />
+  const role = fraternityUser?.role
+  if (role !== 'bar' && role !== 'admin') return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
 function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   const { session, fraternityUser, loading } = useAuth()
   if (loading) return <FullscreenLoader />
@@ -83,7 +92,7 @@ export default function App() {
         <Route path="/reservas" element={<ReservasPage />} />
         <Route path="/cumpleanos" element={<CumpleanosPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
-        <Route path="/bar" element={<BarPage />} />
+        <Route path="/bar" element={<RequireBar><BarPage /></RequireBar>} />
         <Route path="/eventos" element={<RequireAdmin><EventosPage /></RequireAdmin>} />
         <Route path="/deudores" element={<RequireAdmin><DeudoresPage /></RequireAdmin>} />
         <Route path="/aprobaciones" element={<RequireAdmin><AprobacionesPage /></RequireAdmin>} />

@@ -9,7 +9,7 @@ const navItems = [
   { to: '/pagos', label: 'Pagos' },
   { to: '/reservas', label: 'Reservas' },
   { to: '/turnos', label: 'Turnos' },
-  { to: '/bar', label: 'Bar' },
+  { to: '/bar', label: 'Bar', barOnly: true },
   { to: '/cumpleanos', label: 'Cumpleaños' },
   { to: '/eventos', label: 'Eventos', adminOnly: true },
   { to: '/deudores', label: 'Deudores', adminOnly: true },
@@ -24,7 +24,12 @@ export default function Layout() {
   const { fraternityUser } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAdmin = fraternityUser?.role === 'admin'
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin)
+  const canSeeBar = isAdmin || fraternityUser?.role === 'bar'
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false
+    if (item.barOnly && !canSeeBar) return false
+    return true
+  })
 
   async function handleLogout() {
     await signOut()

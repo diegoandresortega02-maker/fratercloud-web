@@ -98,15 +98,10 @@ export default function BarPage() {
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
         <h1 className="text-2xl font-semibold text-ink">Bar</h1>
-        {!canManage && (
-          <span className="text-xs font-medium text-slate-500 bg-surface-muted rounded-full px-3 py-1">
-            Solo lectura
-          </span>
-        )}
       </div>
       <p className="text-xs text-slate-500 mb-6">
-        La caja del bar es independiente de las arcas de la fraternidad. Toda la información es visible para todos los
-        fraternos.
+        La caja del bar es independiente de las arcas de la fraternidad: solo se traspasa mediante el traspaso anual.
+        Este módulo lo ven únicamente el encargado del bar y el administrador.
       </p>
 
       {error && <p className="text-sm text-brand-alert mb-4">{error}</p>}

@@ -1164,6 +1164,7 @@ function buildBarArqueos(wb: Workbook, counts: any[], balance: number) {
     'La caja del bar es independiente de las arcas de la fraternidad.',
     'Solo se traspasa a las arcas mediante el "Traspaso anual", que queda registrado en ambos lados.',
     'Una diferencia distinta de cero en un arqueo debe estar explicada en las observaciones.',
+    'El módulo del bar es visible solo para el encargado del bar y el administrador.',
   ]) {
     const r = ws.addRow([n])
     r.font = { name: FONT, size: 9, color: { argb: 'FF6B7280' } }
