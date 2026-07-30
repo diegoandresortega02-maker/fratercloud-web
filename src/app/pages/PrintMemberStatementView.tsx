@@ -11,6 +11,7 @@ import {
 } from '../../lib/api'
 import type { Fraternity, FraternityUser, MonthlyDue, PaymentPlan, PaymentPlanInstallment } from '../../lib/types'
 import { monthName } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
 import logoLockup from '../../assets/brand/logo-lockup.png'
 
 function periodLabel(period: string): string {
@@ -80,11 +81,18 @@ export default function PrintMemberStatementView() {
 
           <div className="bg-surface-warm rounded-control p-4 flex items-center justify-between mb-6">
             <span className="text-sm font-medium text-ink">Total adeudado</span>
-            <span className="text-2xl font-bold text-brand-gold">Bs {summary?.totalOwed.toFixed(2) ?? '0.00'}</span>
+            <span className="text-2xl font-bold text-brand-gold">Bs {formatMoney(summary?.totalOwed ?? 0)}</span>
           </div>
 
           <section className="mb-6">
-            <h2 className="text-xs font-semibold text-slate-500 uppercase mb-2">Mensualidades pendientes</h2>
+            <h2 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Mensualidades pendientes
+              {pendingDues.length > 0 && (
+                <span className="ml-2 normal-case text-brand-alert font-semibold">
+                  · debe {pendingDues.length} {pendingDues.length === 1 ? 'mes' : 'meses'}
+                </span>
+              )}
+            </h2>
             {pendingDues.length === 0 ? (
               <p className="text-sm text-slate-400">Sin mensualidades pendientes.</p>
             ) : (
@@ -93,7 +101,7 @@ export default function PrintMemberStatementView() {
                   {pendingDues.map((d) => (
                     <tr key={d.id} className="border-b border-surface-border">
                       <td className="py-1.5 text-ink">{periodLabel(d.period)}</td>
-                      <td className="py-1.5 text-right text-ink">Bs {Number(d.amount).toFixed(2)}</td>
+                      <td className="py-1.5 text-right text-ink">Bs {formatMoney(d.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -115,7 +123,7 @@ export default function PrintMemberStatementView() {
                         <td className="py-1.5 text-ink">
                           Cuota {inst.installment_number}/{plan.installments_count} · vence {inst.due_date}
                         </td>
-                        <td className="py-1.5 text-right text-ink">Bs {Number(inst.amount).toFixed(2)}</td>
+                        <td className="py-1.5 text-right text-ink">Bs {formatMoney(inst.amount)}</td>
                       </tr>
                     ))}
                   </tbody>

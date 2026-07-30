@@ -7,6 +7,7 @@ export type TargetKind = 'monthly_due' | 'installment'
 export type SubmissionStatus = 'pendiente' | 'aprobado' | 'rechazado'
 export type ReservationStatus = 'confirmada' | 'cancelada'
 export type TransactionType = 'ingreso' | 'egreso'
+export type EventChargeMode = 'fijo' | 'libre'
 
 export interface UsageFeeRules {
   free_uses: number
@@ -137,15 +138,64 @@ export interface Transaction {
   fraternity_id: string
   type: TransactionType
   category: string | null
+  category_id: string | null
   account: string | null
   amount: number
   description: string | null
   date: string
   created_by: string | null
   member_id: string | null
+  event_id: string | null
   related_payment_submission_id: string | null
   created_at: string
   fraternity_users?: { full_name: string } | null
+}
+
+export interface TransactionCategory {
+  id: string
+  fraternity_id: string
+  kind: TransactionType
+  name: string
+  group_label: string | null
+  created_at: string
+}
+
+export interface TransactionAccount {
+  id: string
+  fraternity_id: string
+  name: string
+  created_at: string
+}
+
+export interface FraternityEvent {
+  id: string
+  fraternity_id: string
+  name: string
+  description: string | null
+  charge_mode: EventChargeMode
+  amount_per_member: number | null
+  event_date: string | null
+  blocks_reservations: boolean
+  is_open: boolean
+  created_by: string | null
+  created_at: string
+}
+
+export interface EventChargeRow {
+  member_id: string
+  full_name: string
+  status: DueStatus
+  amount: number
+  installment_id: string
+}
+
+export interface EventContribution {
+  id: string
+  member_id: string | null
+  member_name: string | null
+  amount: number
+  date: string
+  description: string | null
 }
 
 export interface Receipt {

@@ -3,6 +3,8 @@ import { useAuth } from '../AuthContext'
 import { getFraternityMembers, getMemberDebtSummary, type DebtSummary } from '../../lib/api'
 import type { FraternityUser } from '../../lib/types'
 import { upcomingBirthdays } from '../../lib/birthdays'
+import { formatMoney } from '../../lib/money'
+import ExportExcelButton from '../components/ExportExcelButton'
 
 export default function DashboardPage() {
   const { fraternityUser } = useAuth()
@@ -40,7 +42,7 @@ function MemberSummary() {
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <StatCard
         label="Estado de cuenta"
-        value={summary?.totalOwed ? `Bs ${summary.totalOwed.toFixed(2)}` : 'Al día'}
+        value={summary?.totalOwed ? `Bs ${formatMoney(summary.totalOwed)}` : 'Al día'}
         tone={summary?.isBlocked ? 'alert' : summary?.totalOwed ? 'gold' : 'primary'}
         detail={summary?.isBlocked ? 'Reservas bloqueadas por mora' : undefined}
       />
@@ -91,10 +93,14 @@ function AdminSummary() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportExcelButton />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Fraternos" value={String(members.length)} />
         <StatCard label="Deudores" value={String(debtors.length)} tone={debtors.length > 0 ? 'gold' : 'primary'} />
-        <StatCard label="Deuda total" value={`Bs ${totalOwed.toFixed(2)}`} />
+        <StatCard label="Deuda total" value={`Bs ${formatMoney(totalOwed)}`} />
       </div>
 
       <div className="bg-white rounded-card border border-surface-border p-5">
@@ -113,7 +119,7 @@ function AdminSummary() {
         </select>
         {selected && (
           <div className="text-sm text-slate-600 space-y-1">
-            <p>Debe: Bs {selected.totalOwed.toFixed(2)}</p>
+            <p>Debe: Bs {formatMoney(selected.totalOwed)}</p>
             <p>Meses pendientes: {selected.pendingDuesCount}</p>
             <p>Cuotas pendientes: {selected.pendingInstallmentsCount}</p>
             <p>{selected.isBlocked ? 'Bloqueado para reservar' : 'Puede reservar'}</p>

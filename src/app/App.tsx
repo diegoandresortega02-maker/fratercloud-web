@@ -14,6 +14,7 @@ import AprobacionesPage from './pages/AprobacionesPage'
 import FinanzasPage from './pages/FinanzasPage'
 import FraternosPage from './pages/FraternosPage'
 import TurnosPage from './pages/TurnosPage'
+import EventosPage from './pages/EventosPage'
 import PrintReceiptView from './pages/PrintReceiptView'
 import PrintMemberStatementView from './pages/PrintMemberStatementView'
 import RecibosPage from './pages/RecibosPage'
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="/reservas" element={<ReservasPage />} />
         <Route path="/cumpleanos" element={<CumpleanosPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
+        <Route path="/eventos" element={<RequireAdmin><EventosPage /></RequireAdmin>} />
         <Route path="/deudores" element={<RequireAdmin><DeudoresPage /></RequireAdmin>} />
         <Route path="/aprobaciones" element={<RequireAdmin><AprobacionesPage /></RequireAdmin>} />
         <Route path="/registro-recibos" element={<RequireAdmin><RecibosPage /></RequireAdmin>} />

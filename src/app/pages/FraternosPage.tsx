@@ -11,6 +11,7 @@ import {
   type MemberInput,
 } from '../../lib/api'
 import type { Fraternity, FraternityRole, FraternityUser, MemberStatus } from '../../lib/types'
+import { formatMoneyShort } from '../../lib/money'
 
 export default function FraternosPage() {
   const { fraternityUser } = useAuth()
@@ -181,7 +182,7 @@ export default function FraternosPage() {
               <p className="text-xs text-slate-400">
                 {m.email || 'sin email'}
                 {m.entry_date ? ` · ingresó ${m.entry_date.slice(0, 7)}` : ''}
-                {m.monthly_due_override != null ? ` · cuota propia Bs ${Number(m.monthly_due_override).toFixed(0)}` : ''}
+                {m.monthly_due_override != null ? ` · cuota propia Bs ${formatMoneyShort(m.monthly_due_override)}` : ''}
               </p>
               {m.notes && <p className="text-xs text-brand-gold mt-0.5">{m.notes}</p>}
             </div>

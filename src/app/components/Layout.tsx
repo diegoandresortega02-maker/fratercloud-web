@@ -10,6 +10,7 @@ const navItems = [
   { to: '/reservas', label: 'Reservas' },
   { to: '/turnos', label: 'Turnos' },
   { to: '/cumpleanos', label: 'Cumpleaños' },
+  { to: '/eventos', label: 'Eventos', adminOnly: true },
   { to: '/deudores', label: 'Deudores', adminOnly: true },
   { to: '/aprobaciones', label: 'Gestión de pagos', adminOnly: true },
   { to: '/registro-recibos', label: 'Recibos', adminOnly: true },

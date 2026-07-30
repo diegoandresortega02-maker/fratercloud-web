@@ -26,3 +26,6 @@ dist-ssr
 
 .vercel
 .env*
+
+# Salida del análisis de graphify (no es parte de la app)
+graphify-out/

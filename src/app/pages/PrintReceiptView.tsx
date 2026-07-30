@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { getMyFraternity, getReceiptById } from '../../lib/api'
 import type { Fraternity, Receipt } from '../../lib/types'
 import logoLockup from '../../assets/brand/logo-lockup.png'
+import { formatMoney } from '../../lib/money'
 
 export default function PrintReceiptView() {
   const { id } = useParams<{ id: string }>()
@@ -67,7 +68,7 @@ export default function PrintReceiptView() {
 
           <div className="bg-surface-warm rounded-control p-4 flex items-center justify-between">
             <span className="text-sm font-medium text-ink">Monto pagado</span>
-            <span className="text-2xl font-bold text-brand-primary">Bs {Number(receipt.amount).toFixed(2)}</span>
+            <span className="text-2xl font-bold text-brand-primary">Bs {formatMoney(receipt.amount)}</span>
           </div>
 
           <p className="text-[11px] text-slate-400 mt-8 text-center">

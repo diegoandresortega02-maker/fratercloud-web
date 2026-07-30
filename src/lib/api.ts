@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient'
 import type {
   BlockedDate,
+  DueStatus,
   Fraternity,
   FraternityUser,
   MemberStatus,
@@ -12,9 +13,15 @@ import type {
   Reservation,
   TargetKind,
   Transaction,
+  TransactionAccount,
+  TransactionCategory,
   TransactionType,
   Turn,
   TurnStatus,
+  EventChargeMode,
+  EventChargeRow,
+  EventContribution,
+  FraternityEvent,
 } from './types'
 
 async function getMyFraternityIdOrThrow(): Promise<string> {
@@ -473,11 +480,13 @@ export async function getTransactions(fromDate: string, toDate: string): Promise
 export type TransactionInput = {
   type: TransactionType
   category?: string | null
+  category_id?: string | null
   account?: string | null
   amount: number
   description?: string | null
   date: string
   member_id?: string | null
+  event_id?: string | null
 }
 
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
@@ -495,6 +504,141 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
 export async function deleteTransaction(id: string) {
   const { error } = await supabase.from('transactions').delete().eq('id', id)
   if (error) throw error
+}
+
+// ---------- Managed categories & accounts ----------
+
+export async function getTransactionCategories(): Promise<TransactionCategory[]> {
+  const { data, error } = await supabase
+    .from('transaction_categories')
+    .select('*')
+    .order('group_label', { nullsFirst: true })
+    .order('name')
+  if (error) throw error
+  return data
+}
+
+export async function createTransactionCategory(input: {
+  kind: TransactionType
+  name: string
+  group_label?: string | null
+}): Promise<TransactionCategory> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const { data, error } = await supabase
+    .from('transaction_categories')
+    .insert({ fraternity_id: fraternityId, kind: input.kind, name: input.name, group_label: input.group_label ?? null })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateTransactionCategory(
+  id: string,
+  input: { name?: string; group_label?: string | null },
+) {
+  const { error } = await supabase.from('transaction_categories').update(input).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTransactionCategory(id: string) {
+  const { error } = await supabase.from('transaction_categories').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function getTransactionAccounts(): Promise<TransactionAccount[]> {
+  const { data, error } = await supabase.from('transaction_accounts').select('*').order('name')
+  if (error) throw error
+  return data
+}
+
+export async function createTransactionAccount(name: string): Promise<TransactionAccount> {
+  const fraternityId = await getMyFraternityIdOrThrow()
+  const { data, error } = await supabase
+    .from('transaction_accounts')
+    .insert({ fraternity_id: fraternityId, name })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteTransactionAccount(id: string) {
+  const { error } = await supabase.from('transaction_accounts').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Eventos extraordinarios ----------
+
+export async function getEvents(): Promise<FraternityEvent[]> {
+  const { data, error } = await supabase
+    .from('fraternity_events')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function getEvent(id: string): Promise<FraternityEvent> {
+  const { data, error } = await supabase.from('fraternity_events').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+export async function createEvent(input: {
+  name: string
+  description?: string | null
+  charge_mode: EventChargeMode
+  amount_per_member?: number | null
+  event_date?: string | null
+  blocks_reservations?: boolean
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('create_event', {
+    p_name: input.name,
+    p_description: input.description ?? null,
+    p_charge_mode: input.charge_mode,
+    p_amount_per_member: input.amount_per_member ?? null,
+    p_event_date: input.event_date ?? null,
+    p_blocks_reservations: input.blocks_reservations ?? false,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function deleteEvent(id: string) {
+  const { error } = await supabase.from('fraternity_events').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Roster of every active member's charge status for a 'fijo' event.
+// SECURITY DEFINER RPC so every member sees the full roster (transparency),
+// not just their own row (base-table RLS is own-or-admin).
+export async function getEventChargeStatus(eventId: string): Promise<EventChargeRow[]> {
+  const { data, error } = await supabase.rpc('get_event_roster', { p_event_id: eventId })
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => ({
+    installment_id: r.installment_id,
+    amount: Number(r.amount),
+    status: r.status,
+    member_id: r.member_id,
+    full_name: r.full_name ?? '—',
+  }))
+}
+
+// Contributions recorded against a 'libre' event (same transparency rationale)
+export async function getEventContributions(eventId: string): Promise<EventContribution[]> {
+  const { data, error } = await supabase.rpc('get_event_contributions', { p_event_id: eventId })
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => ({
+    id: r.id,
+    amount: Number(r.amount),
+    date: r.date,
+    description: r.description,
+    member_id: r.member_id,
+    member_name: r.member_name ?? null,
+  }))
 }
 
 // ---------- Pago manual del tesorero ----------
@@ -555,6 +699,87 @@ export async function getReceiptById(id: string): Promise<Receipt> {
     .select('*, fraternity_users!receipts_member_id_fkey(full_name)')
     .eq('id', id)
     .single()
+  if (error) throw error
+  return data
+}
+
+// ---------- Consultas masivas (para el exportador Excel) ----------
+// Traen todo el historial de la fraternidad en una sola consulta cada una,
+// evitando el patrón N+1 de las funciones por-miembro/por-plan.
+
+export async function getAllTransactions(): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*, fraternity_users!transactions_member_id_fkey(full_name)')
+    .order('date', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export interface PlanInstallmentRow {
+  id: string
+  plan_id: string
+  installment_number: number
+  due_date: string
+  amount: number
+  status: DueStatus
+  paid_at: string | null
+  member_id: string
+  member_name: string
+  reason: string
+  installments_count: number
+  total_amount: number
+  event_id: string | null
+}
+
+export async function getAllPlanInstallments(): Promise<PlanInstallmentRow[]> {
+  const { data, error } = await supabase
+    .from('payment_plan_installments')
+    .select(
+      'id, plan_id, installment_number, due_date, amount, status, paid_at, payment_plans!inner(member_id, reason, installments_count, total_amount, event_id, fraternity_users!payment_plans_member_id_fkey(full_name))',
+    )
+    .order('due_date')
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => ({
+    id: r.id,
+    plan_id: r.plan_id,
+    installment_number: r.installment_number,
+    due_date: r.due_date,
+    amount: Number(r.amount),
+    status: r.status,
+    paid_at: r.paid_at,
+    member_id: r.payment_plans.member_id,
+    member_name: r.payment_plans.fraternity_users?.full_name ?? '—',
+    reason: r.payment_plans.reason,
+    installments_count: r.payment_plans.installments_count,
+    total_amount: Number(r.payment_plans.total_amount),
+    event_id: r.payment_plans.event_id,
+  }))
+}
+
+export async function getAllReservations(): Promise<Reservation[]> {
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('*, fraternity_users(full_name)')
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function getAllBlockedDates(): Promise<BlockedDate[]> {
+  const { data, error } = await supabase.from('blocked_dates').select('*').order('date', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function getAllTurns(): Promise<Turn[]> {
+  const { data, error } = await supabase
+    .from('turns')
+    .select(
+      '*, member:fraternity_users!turns_member_id_fkey(full_name), replacement:fraternity_users!turns_replacement_member_id_fkey(full_name)',
+    )
+    .order('date', { ascending: false })
   if (error) throw error
   return data
 }

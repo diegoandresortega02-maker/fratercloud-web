@@ -14,6 +14,7 @@ import {
 } from '../../lib/api'
 import type { FraternityUser, MonthlyDue, PaymentPlan, PaymentPlanInstallment, Receipt, TargetKind } from '../../lib/types'
 import { monthName, toISODate } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
 
 function periodLabel(period: string): string {
   const [year, month] = period.split('-').map(Number)
@@ -83,7 +84,7 @@ export default function DeudoresPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-brand-gold">Bs {s.totalOwed.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-brand-gold">Bs {formatMoney(s.totalOwed)}</span>
                 {s.isBlocked && (
                   <span className="text-xs font-medium text-brand-alert bg-brand-alert/10 rounded-full px-2 py-0.5">
                     Bloqueado
@@ -256,13 +257,20 @@ function MemberDetailModal({
         ) : (
           <>
             <section className="mb-5">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Mensualidades pendientes</h4>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+                Mensualidades pendientes
+                {pendingDues.length > 0 && (
+                  <span className="ml-2 normal-case text-brand-alert font-semibold">
+                    debe {pendingDues.length} {pendingDues.length === 1 ? 'mes' : 'meses'}
+                  </span>
+                )}
+              </h4>
               {pendingDues.length === 0 && <p className="text-sm text-slate-400">Al día.</p>}
               <div className="space-y-2">
                 {pendingDues.map((d) => (
                   <div key={d.id} className="flex items-center justify-between gap-2 bg-surface-warm rounded-control px-3 py-2">
                     <span className="text-sm text-ink">
-                      {periodLabel(d.period)} · Bs {Number(d.amount).toFixed(2)}
+                      {periodLabel(d.period)} · Bs {formatMoney(d.amount)}
                     </span>
                     <button
                       onClick={() =>
@@ -295,7 +303,7 @@ function MemberDetailModal({
                       >
                         <span className="text-sm text-ink">
                           Cuota {inst.installment_number}/{plan.installments_count} · vence {inst.due_date} · Bs{' '}
-                          {Number(inst.amount).toFixed(2)}
+                          {formatMoney(inst.amount)}
                         </span>
                         <button
                           onClick={() =>
@@ -325,7 +333,7 @@ function MemberDetailModal({
                     <div key={r.id} className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">
                         N° {String(r.receipt_number).padStart(4, '0')} · {r.payment_date} · Bs{' '}
-                        {Number(r.amount).toFixed(2)}
+                        {formatMoney(r.amount)}
                       </span>
                       <Link to={`/recibos/${r.id}`} target="_blank" className="text-xs text-brand-primary hover:underline">
                         Ver

@@ -23,6 +23,7 @@ import type {
   TargetKind,
 } from '../../lib/types'
 import { monthName } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
 
 function periodLabel(period: string): string {
   const [year, month] = period.split('-').map(Number)
@@ -80,12 +81,12 @@ export default function PagosPage() {
         <div>
           <p className="text-xs font-medium text-slate-500 mb-1">Total adeudado</p>
           <p className={`text-2xl font-semibold ${summary?.totalOwed ? 'text-brand-gold' : 'text-brand-primary'}`}>
-            Bs {summary?.totalOwed.toFixed(2) ?? '0.00'}
+            Bs {formatMoney(summary?.totalOwed ?? 0)}
           </p>
           {summary && summary.totalOwed > 0 && (
             <p className="text-xs text-slate-400 mt-1">
-              Mensualidades: Bs {summary.pendingDuesAmount.toFixed(2)} · Otras cuotas: Bs{' '}
-              {summary.pendingInstallmentsAmount.toFixed(2)}
+              Mensualidades: Bs {formatMoney(summary.pendingDuesAmount)} · Otras cuotas: Bs{' '}
+              {formatMoney(summary.pendingInstallmentsAmount)}
             </p>
           )}
         </div>
@@ -109,7 +110,7 @@ export default function PagosPage() {
               <div key={due.id} className="p-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-ink">{periodLabel(due.period)}</p>
-                  <p className="text-xs text-slate-400">Bs {Number(due.amount).toFixed(2)}</p>
+                  <p className="text-xs text-slate-400">Bs {formatMoney(due.amount)}</p>
                 </div>
                 <StatusOrUpload
                   status={due.status}
@@ -130,7 +131,7 @@ export default function PagosPage() {
               <div className="p-4 border-b border-surface-border">
                 <p className="text-sm font-medium text-ink">{plan.reason}</p>
                 <p className="text-xs text-slate-400">
-                  Bs {Number(plan.total_amount).toFixed(2)} en {plan.installments_count} cuotas
+                  Bs {formatMoney(plan.total_amount)} en {plan.installments_count} cuotas
                 </p>
               </div>
               <div className="divide-y divide-surface-border">
@@ -141,7 +142,7 @@ export default function PagosPage() {
                       <div>
                         <p className="text-sm font-medium text-ink">Cuota {inst.installment_number}</p>
                         <p className="text-xs text-slate-400">
-                          Vence {inst.due_date} · Bs {Number(inst.amount).toFixed(2)}
+                          Vence {inst.due_date} · Bs {formatMoney(inst.amount)}
                         </p>
                       </div>
                       <StatusOrUpload
@@ -167,7 +168,7 @@ export default function PagosPage() {
                 <div>
                   <p className="text-sm font-medium text-ink">{r.concept}</p>
                   <p className="text-xs text-slate-400">
-                    N° {String(r.receipt_number).padStart(4, '0')} · {r.payment_date} · Bs {Number(r.amount).toFixed(2)}
+                    N° {String(r.receipt_number).padStart(4, '0')} · {r.payment_date} · Bs {formatMoney(r.amount)}
                   </p>
                 </div>
                 <Link
@@ -265,7 +266,7 @@ function UploadModal({
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-card p-6 w-full max-w-sm">
         <h3 className="text-base font-semibold text-ink mb-3">Subir comprobante de pago</h3>
-        <p className="text-sm text-slate-500 mb-3">Monto: Bs {target.amount.toFixed(2)}</p>
+        <p className="text-sm text-slate-500 mb-3">Monto: Bs {formatMoney(target.amount)}</p>
         <input
           type="file"
           accept="image/*"

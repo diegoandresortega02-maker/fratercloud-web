@@ -14,6 +14,7 @@ import {
 } from '../../lib/api'
 import type { BlockedDate, Reservation, UsageFeeRules } from '../../lib/types'
 import { addMonths, daysInMonthGrid, monthLabel, toISODate } from '../../lib/dates'
+import { formatMoneyShort } from '../../lib/money'
 
 export default function ReservasPage() {
   const { fraternityUser } = useAuth()
@@ -113,7 +114,7 @@ export default function ReservasPage() {
                         <span>
                           {r.start_time.slice(0, 5)}–{r.end_time.slice(0, 5)} · {r.fraternity_users?.full_name}
                           {r.usage_fee != null && Number(r.usage_fee) > 0 && (
-                            <span className="text-brand-gold font-medium"> · Bs {Number(r.usage_fee).toFixed(0)}</span>
+                            <span className="text-brand-gold font-medium"> · Bs {formatMoneyShort(r.usage_fee)}</span>
                           )}
                         </span>
                         {(r.member_id === fraternityUser?.id || isAdmin) && (
@@ -191,9 +192,9 @@ function ReservationFormModal({ date, onClose, onDone }: { date: string; onClose
         if (priorUses < rules.free_uses) {
           setFeePreview('Este es tu uso libre del año — sin costo.')
         } else if (priorUses < rules.mid_until) {
-          setFeePreview(`Este uso tiene un costo de Bs ${rules.mid_fee} (uso n.º ${priorUses + 1} del año).`)
+          setFeePreview(`Este uso tiene un costo de Bs ${formatMoneyShort(rules.mid_fee)} (uso n.º ${priorUses + 1} del año).`)
         } else {
-          setFeePreview(`Este uso tiene un costo de Bs ${rules.high_fee} (uso n.º ${priorUses + 1} del año).`)
+          setFeePreview(`Este uso tiene un costo de Bs ${formatMoneyShort(rules.high_fee)} (uso n.º ${priorUses + 1} del año).`)
         }
       })
       .catch(() => {})

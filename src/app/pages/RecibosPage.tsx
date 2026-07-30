@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getAllReceipts } from '../../lib/api'
 import type { Receipt } from '../../lib/types'
+import { formatMoney } from '../../lib/money'
 
 export default function RecibosPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([])
@@ -41,7 +42,7 @@ export default function RecibosPage() {
 
       <div className="bg-white rounded-card border border-surface-border p-5 mb-6 flex items-center justify-between">
         <span className="text-sm font-medium text-ink">{filtered.length} recibos</span>
-        <span className="text-lg font-semibold text-brand-primary">Bs {total.toFixed(2)}</span>
+        <span className="text-lg font-semibold text-brand-primary">Bs {formatMoney(total)}</span>
       </div>
 
       <div className="bg-white rounded-card border border-surface-border divide-y divide-surface-border">
@@ -57,7 +58,7 @@ export default function RecibosPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-brand-primary">Bs {Number(r.amount).toFixed(2)}</span>
+              <span className="text-sm font-semibold text-brand-primary">Bs {formatMoney(r.amount)}</span>
               <Link to={`/recibos/${r.id}`} target="_blank" className="text-xs font-medium text-brand-primary hover:underline">
                 Ver
               </Link>

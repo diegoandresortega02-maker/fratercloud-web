@@ -6,6 +6,7 @@ import {
   rejectPaymentSubmission,
 } from '../../lib/api'
 import type { PaymentSubmission } from '../../lib/types'
+import { formatMoney } from '../../lib/money'
 
 export default function AprobacionesPage() {
   const [submissions, setSubmissions] = useState<PaymentSubmission[]>([])
@@ -58,7 +59,7 @@ export default function AprobacionesPage() {
             <div>
               <p className="text-sm font-medium text-ink">{s.fraternity_users?.full_name}</p>
               <p className="text-xs text-slate-400">
-                {s.target_type === 'monthly_due' ? 'Mensualidad' : 'Cuota de plan de pago'} · Bs {Number(s.amount).toFixed(2)} ·{' '}
+                {s.target_type === 'monthly_due' ? 'Mensualidad' : 'Cuota de plan de pago'} · Bs {formatMoney(s.amount)} ·{' '}
                 {new Date(s.submitted_at).toLocaleDateString('es-BO')}
               </p>
             </div>
