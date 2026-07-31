@@ -4,6 +4,8 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Onboarding from './pages/Onboarding'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Layout from './components/Layout'
 import DashboardPage from './pages/DashboardPage'
 import PagosPage from './pages/PagosPage'
@@ -73,6 +75,10 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
       <Route path="/registro" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
+      <Route path="/olvide-password" element={<RedirectIfAuthed><ForgotPassword /></RedirectIfAuthed>} />
+      {/* Sin guardia a propósito: el enlace del correo abre una sesión real, así
+          que RedirectIfAuthed sacaría al fraterno antes de poder cambiar la clave. */}
+      <Route path="/restablecer-password" element={<ResetPassword />} />
       <Route path="/onboarding" element={<RequireSessionOnly><Onboarding /></RequireSessionOnly>} />
       <Route path="/recibos/:id" element={<RequireAuth><PrintReceiptView /></RequireAuth>} />
       <Route

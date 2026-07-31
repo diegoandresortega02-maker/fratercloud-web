@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signUp } from '../../lib/auth'
+import { getAuthErrorMessage } from '../../lib/authErrors'
 import { useAuth } from '../AuthContext'
 import AuthCard from '../components/AuthCard'
+
+const MIN_LARGO = 8
 
 export default function Register() {
   const navigate = useNavigate()
@@ -17,18 +20,24 @@ export default function Register() {
     e.preventDefault()
     setError(null)
     setInfo(null)
+
+    if (password.length < MIN_LARGO) {
+      setError(`La contraseña debe tener al menos ${MIN_LARGO} caracteres.`)
+      return
+    }
+
     setLoading(true)
     try {
-      const data = await signUp(email, password)
+      const data = await signUp(email.trim(), password)
       if (data.session) {
         await refreshFraternityUser()
         navigate('/onboarding')
       } else {
-        setInfo('Revisa tu correo para confirmar la cuenta y luego inicia sesión.')
+        setInfo('Te enviamos un correo para confirmar la cuenta. Revisá tu bandeja y el spam.')
       }
     } catch (err) {
       console.error(err)
-      setError(err instanceof Error ? err.message : 'Error al registrarse')
+      setError(getAuthErrorMessage(err, 'No se pudo crear la cuenta. Intentá de nuevo.'))
     } finally {
       setLoading(false)
     }
@@ -63,14 +72,20 @@ export default function Register() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
           <input
             type="password"
+            autoComplete="new-password"
             required
-            minLength={6}
+            minLength={MIN_LARGO}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-control border border-surface-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
           />
+          <p className="mt-1 text-xs text-slate-500">Al menos {MIN_LARGO} caracteres.</p>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-brand-alert bg-brand-alert/5 rounded-control px-3 py-2">
+            {error}
+          </p>
+        )}
         {info && <p className="text-sm text-emerald-600">{info}</p>}
         <button
           type="submit"

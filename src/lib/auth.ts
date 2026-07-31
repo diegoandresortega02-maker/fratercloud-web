@@ -18,6 +18,47 @@ export async function signOut() {
   if (error) throw error
 }
 
+/** Envía el correo con el enlace para elegir una contraseña nueva. */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/restablecer-password`,
+  })
+  if (error) throw error
+}
+
+/** Fija la contraseña nueva. Requiere la sesión que crea el enlace del correo. */
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
+export type EmailAccountStatus = 'unknown' | 'has_account' | 'no_account'
+
+/** Deja constancia de un intento fallido. Nunca debe romper el flujo de login. */
+export async function recordFailedLogin(email: string) {
+  try {
+    await supabase.rpc('record_failed_login', { p_email: email })
+  } catch (err) {
+    console.error('No se pudo registrar el intento fallido', err)
+  }
+}
+
+/**
+ * Pregunta si el correo tiene cuenta. El servidor solo responde algo distinto
+ * de 'unknown' después de 4 intentos fallidos recientes con ese mismo correo,
+ * así que no sirve para averiguar quién está registrado sin fallar antes.
+ */
+export async function getEmailAccountStatus(email: string): Promise<EmailAccountStatus> {
+  try {
+    const { data, error } = await supabase.rpc('email_account_status', { p_email: email })
+    if (error) throw error
+    return (data as EmailAccountStatus) ?? 'unknown'
+  } catch (err) {
+    console.error('No se pudo consultar el estado del correo', err)
+    return 'unknown'
+  }
+}
+
 export async function getMyFraternityUser(): Promise<FraternityUser | null> {
   const { data: sessionData } = await supabase.auth.getSession()
   if (!sessionData.session) return null
