@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import logoLockup from '../../assets/brand/logo-lockup.png'
@@ -28,83 +28,145 @@ const FEATURES: { icon: (props: { className?: string }) => ReactElement; title: 
   {
     icon: IconLock,
     title: 'Bloqueo automático por mora',
-    description: 'Quien debe 2 meses o más queda bloqueado para reservar hasta ponerse al día — sin excepciones manuales.',
+    description: 'Quien se atrasa queda bloqueado para reservar hasta ponerse al día — sin excepciones manuales.',
   },
   {
     icon: IconChart,
     title: 'Ingresos y egresos',
-    description: 'Registra cada movimiento y mira el balance del periodo: cuánto entró, cuánto salió.',
+    description: 'Cada movimiento con su categoría y cuenta, y el balance del periodo siempre a la vista.',
   },
   {
-    icon: IconGift,
-    title: 'Cumpleaños',
-    description: 'Calendario de cumpleaños de todos los fraternos, siempre a la vista de la comunidad.',
+    icon: IconGlass,
+    title: 'Bar con inventario',
+    description: 'Stock, ventas y caja propia del bar, con arqueos que dejan por escrito cualquier diferencia.',
   },
   {
-    icon: IconBuilding,
-    title: 'Multi-fraternidad',
-    description: 'Cada fraternidad ve únicamente su propia información, con administradores y fraternos con roles claros.',
+    icon: IconDownload,
+    title: 'Reportes en Excel',
+    description: 'Descarga toda la información en un archivo ordenado, con fórmulas y listo para imprimir.',
   },
 ]
 
 const TRAITS = [
+  { icon: IconHandshake, title: 'Cercana', description: 'Lenguaje directo y amable, sin tecnicismos innecesarios.' },
+  { icon: IconShield, title: 'Confiable', description: 'Datos ordenados, mensajes precisos y acciones previsibles.' },
+  { icon: IconBolt, title: 'Dinámica', description: 'Interfaces ágiles, acentos vivos y llamados claros.' },
+  { icon: IconUsers, title: 'Inclusiva', description: 'Representa a la comunidad sin estereotipos ni jerarquías visuales.' },
+]
+
+const STEPS = [
   {
-    icon: IconHandshake,
-    title: 'Cercana',
-    description: 'Lenguaje directo y amable, sin tecnicismos innecesarios.',
+    n: '1',
+    title: 'Crea tu fraternidad',
+    description: 'Te registras, defines el aporte mensual y las reglas de mora. Toma menos de dos minutos.',
   },
   {
-    icon: IconShield,
-    title: 'Confiable',
-    description: 'Datos ordenados, mensajes precisos y acciones previsibles.',
+    n: '2',
+    title: 'Suma a los fraternos',
+    description: 'Los cargas de una vez, aunque todavía no tengan cuenta. Cada uno entra después con el código de invitación.',
   },
   {
-    icon: IconBolt,
-    title: 'Dinámica',
-    description: 'Interfaces ágiles, acentos vivos y llamados claros.',
+    n: '3',
+    title: 'Gestiona y reporta',
+    description: 'Cobros, reservas, turnos y bar en un solo lugar. Y cuando lo necesites, todo en un Excel ordenado.',
+  },
+]
+
+const PROFILES = [
+  {
+    icon: IconUser,
+    title: 'Fraterno',
+    color: 'text-brand-primary-dark',
+    bg: 'bg-brand-primary/10',
+    items: ['Su estado de cuenta y lo que debe', 'Sube el comprobante de su pago', 'Reserva la sede si está al día', 'Turnos y cumpleaños'],
   },
   {
-    icon: IconUsers,
-    title: 'Inclusiva',
-    description: 'Representa a la comunidad sin estereotipos ni jerarquías visuales.',
+    icon: IconGlass,
+    title: 'Encargado de bar',
+    color: 'text-brand-gold',
+    bg: 'bg-brand-gold/10',
+    items: ['Inventario y precios del bar', 'Registra ventas y compras', 'Caja del bar, separada de las arcas', 'Arqueos de caja y de stock'],
+  },
+  {
+    icon: IconShieldCheck,
+    title: 'Administrador',
+    color: 'text-brand-navy',
+    bg: 'bg-brand-navy/10',
+    items: ['Todo lo anterior, a escala de la fraternidad', 'Aprueba pagos y emite recibos', 'Ingresos, egresos y eventos', 'Reportes y descarga en Excel'],
+  },
+]
+
+const FAQS = [
+  {
+    q: '¿Los datos de mi fraternidad quedan separados de los de otras?',
+    a: 'Sí. Cada fraternidad ve únicamente su propia información. La separación está aplicada en la base de datos, no solo en la pantalla: aunque alguien intentara consultar por fuera del sistema, no obtiene datos de otra fraternidad.',
+  },
+  {
+    q: '¿Puedo traer lo que ya tengo en Excel?',
+    a: 'Sí. Se puede cargar el estado inicial: los fraternos, lo que cada uno debe, los saldos de las cuentas y los gastos históricos. A partir de ahí el sistema sigue solo, y podés descargar todo en Excel cuando quieras.',
+  },
+  {
+    q: '¿Qué pasa si un fraterno todavía no tiene cuenta?',
+    a: 'No es problema. El administrador lo carga igual con su deuda y su historial. Cuando ese fraterno se registre con el mismo correo, el sistema le entrega automáticamente su ficha — sin duplicados ni datos perdidos.',
+  },
+  {
+    q: '¿Los fraternos ven las cuentas de la fraternidad?',
+    a: 'Cada perfil ve lo que le corresponde. El fraterno ve su propio estado de cuenta; el encargado del bar, su inventario y su caja; el administrador, el panorama completo. Vos decidís quién tiene cada rol.',
   },
 ]
 
 export default function Landing() {
   const { session, fraternityUser } = useAuth()
   const isLoggedIn = !!session && !!fraternityUser
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-surface-warm">
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-surface-border">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <img src={logoLockup} alt="FraterCloud" className="h-7 w-auto" />
+    <div className="min-h-screen bg-surface-warm overflow-x-hidden">
+      <header
+        className={`sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-surface-border transition-shadow ${
+          scrolled ? 'shadow-card' : ''
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+          <img src={logoLockup} alt="FraterCloud" className="h-6 sm:h-7 w-auto shrink-0" />
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
             <a href="#funcionalidades" className="hover:text-ink">
               Funcionalidades
             </a>
-            <a href="#marca" className="hover:text-ink">
-              Por qué FraterCloud
+            <a href="#perfiles" className="hover:text-ink">
+              Perfiles
+            </a>
+            <a href="#preguntas" className="hover:text-ink">
+              Preguntas
             </a>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {isLoggedIn ? (
               <Link
                 to="/dashboard"
-                className="bg-brand-primary hover:bg-brand-primary-dark text-white text-sm font-medium rounded-control px-4 py-2"
+                className="bg-brand-primary hover:bg-brand-primary-dark text-white text-sm font-medium rounded-control px-4 py-2 whitespace-nowrap"
               >
                 Ir a mi panel
               </Link>
             ) : (
               <>
-                <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-ink">
+                {/* En pantallas muy angostas se oculta para que el logo y el CTA no se enciman */}
+                <Link to="/login" className="hidden xs:inline text-sm font-medium text-slate-600 hover:text-ink whitespace-nowrap">
                   Iniciar sesión
                 </Link>
                 <Link
                   to="/registro"
-                  className="bg-brand-primary hover:bg-brand-primary-dark text-white text-sm font-medium rounded-control px-4 py-2"
+                  className="bg-brand-primary hover:bg-brand-primary-dark text-white text-sm font-medium rounded-control px-3 sm:px-4 py-2 whitespace-nowrap"
                 >
-                  Comenzar gratis
+                  Comenzar
+                  <span className="hidden sm:inline"> gratis</span>
                 </Link>
               </>
             )}
@@ -113,143 +175,562 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-20 grid md:grid-cols-2 gap-12 items-center">
-        <div>
-          <p className="text-brand-primary-dark text-sm font-semibold mb-3">Software para fraternidades sociales</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-ink leading-tight mb-5">
-            Tu comunidad, mejor conectada<span className="text-brand-coral">.</span>
-          </h1>
-          <p className="text-slate-500 text-lg mb-8 max-w-md">
-            FraterCloud reúne miembros, cuotas, reservas, ingresos y comunicación de tu fraternidad en un solo lugar
-            confiable — sin planillas ni WhatsApp perdidos.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to="/registro"
-              className="bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-6 py-3"
-            >
-              Comenzar gratis
-            </Link>
-            <a
-              href="#funcionalidades"
-              className="border border-surface-border hover:bg-surface-muted text-ink font-medium rounded-control px-6 py-3"
-            >
-              Ver funcionalidades
-            </a>
-          </div>
+      <section className="relative">
+        {/* Manchas de color de marca, sutiles y decorativas */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-primary/10 blur-3xl" />
+          <div className="absolute top-32 -right-20 w-80 h-80 rounded-full bg-brand-coral/10 blur-3xl" />
         </div>
 
-        <HeroMockup />
+        <div className="relative max-w-6xl mx-auto px-6 pt-16 pb-20 grid lg:grid-cols-2 gap-12 items-center">
+          <Reveal>
+            <p className="text-brand-primary-dark text-sm font-semibold mb-3">Software para fraternidades sociales</p>
+            <h1 className="text-[2rem] sm:text-4xl md:text-5xl font-bold text-ink leading-tight mb-5 text-balance">
+              Tu comunidad, mejor conectada<span className="text-brand-coral">.</span>
+            </h1>
+            <p className="text-slate-500 text-lg mb-8 max-w-md">
+              FraterCloud reúne miembros, cuotas, reservas, bar y finanzas de tu fraternidad en un solo lugar
+              confiable — sin planillas sueltas ni WhatsApp perdidos.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/registro"
+                className="bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-6 py-3 transition-colors"
+              >
+                Comenzar gratis
+              </Link>
+              <a
+                href="#funcionalidades"
+                className="border border-surface-border bg-white hover:bg-surface-muted text-ink font-medium rounded-control px-6 py-3 transition-colors"
+              >
+                Ver funcionalidades
+              </a>
+            </div>
+          </Reveal>
+
+          <Reveal delay={120}>
+            <PanelDemo />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Del Excel a FraterCloud */}
+      <section className="bg-white border-y border-surface-border">
+        <div className="max-w-5xl mx-auto px-6 py-20">
+          <Reveal>
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-ink mb-3">Del Excel a FraterCloud</h2>
+              <p className="text-slate-500 max-w-2xl mx-auto">
+                FraterCloud nació mirando la planilla real de una fraternidad: 17 hojas, meses escritos de cinco formas
+                distintas y totales que ya no cuadraban.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div className="rounded-card border border-surface-border p-6 bg-surface-warm/60">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Antes</p>
+                <ul className="space-y-3">
+                  {[
+                    'Una planilla que solo una persona entiende',
+                    'Sumar a mano quién debe y cuántos meses',
+                    'Reservas acordadas por WhatsApp',
+                    'El dinero del bar anotado en un cuaderno',
+                    'Cerrar la gestión tomaba días',
+                  ].map((t) => (
+                    <li key={t} className="flex gap-3 text-sm text-slate-500">
+                      <span className="text-slate-300 mt-0.5">✕</span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-card border-2 border-brand-primary/30 p-6 bg-white shadow-card">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary-dark mb-4">Ahora</p>
+                <ul className="space-y-3">
+                  {[
+                    'Cada fraterno entra y ve lo suyo',
+                    'La deuda se calcula sola, mes a mes',
+                    'Calendario de reservas con bloqueo por mora',
+                    'Bar con inventario, caja propia y arqueos',
+                    'Todo el reporte en Excel, en un clic',
+                  ].map((t) => (
+                    <li key={t} className="flex gap-3 text-sm text-ink">
+                      <span className="text-brand-primary mt-0.5">✓</span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       {/* Features */}
       <section id="funcionalidades" className="max-w-6xl mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-ink mb-3">Todo lo que tu fraternidad necesita</h2>
-          <p className="text-slate-500 max-w-xl mx-auto">
-            Un sistema pensado desde la gestión real de una fraternidad: cuotas, deudores, reservas y comunicación.
-          </p>
-        </div>
+        <Reveal>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-ink mb-3">Todo lo que tu fraternidad necesita</h2>
+            <p className="text-slate-500 max-w-xl mx-auto">
+              Un sistema pensado desde la gestión real de una fraternidad: cuotas, deudores, reservas, bar y reportes.
+            </p>
+          </div>
+        </Reveal>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="bg-white rounded-card border border-surface-border p-6">
-              <div className="w-10 h-10 rounded-control bg-brand-primary/10 flex items-center justify-center mb-4">
-                <f.icon className="w-5 h-5 text-brand-primary-dark" />
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delay={i * 60}>
+              <div className="h-full bg-white rounded-card border border-surface-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-card hover:border-brand-primary/40">
+                <div className="w-10 h-10 rounded-control bg-brand-primary/10 flex items-center justify-center mb-4">
+                  <f.icon className="w-5 h-5 text-brand-primary-dark" />
+                </div>
+                <h3 className="font-semibold text-ink mb-1">{f.title}</h3>
+                <p className="text-sm text-slate-500">{f.description}</p>
               </div>
-              <h3 className="font-semibold text-ink mb-1">{f.title}</h3>
-              <p className="text-sm text-slate-500">{f.description}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* Story */}
-      <section className="max-w-4xl mx-auto px-6 py-8 text-center">
-        <h2 className="text-2xl font-bold text-ink mb-3">Pensado para cómo se organiza una fraternidad</h2>
-        <p className="text-slate-500 mb-4 max-w-2xl mx-auto">
-          Un administrador con visión completa y cada fraterno con su propio estado de cuenta, su calendario de
-          reservas y sus cumpleaños. Todo conectado, sin depender de una planilla que solo una persona entiende.
-        </p>
-        <Link to="/registro" className="text-brand-primary font-medium hover:text-brand-primary-dark">
-          Crear mi fraternidad →
-        </Link>
+      {/* Cómo funciona */}
+      <section className="bg-brand-navy">
+        <div className="max-w-5xl mx-auto px-6 py-20">
+          <Reveal>
+            <h2 className="text-3xl font-bold text-white text-center mb-12">Empezar es simple</h2>
+          </Reveal>
+          <div className="grid md:grid-cols-3 gap-8">
+            {STEPS.map((s, i) => (
+              <Reveal key={s.n} delay={i * 120}>
+                <div className="text-center md:text-left">
+                  <div className="w-11 h-11 rounded-full bg-brand-primary text-white font-bold text-lg flex items-center justify-center mb-4 mx-auto md:mx-0">
+                    {s.n}
+                  </div>
+                  <h3 className="font-semibold text-white mb-2">{s.title}</h3>
+                  <p className="text-sm text-slate-300">{s.description}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={360}>
+            <div className="text-center mt-12">
+              <Link
+                to="/registro"
+                className="inline-block bg-white hover:bg-surface-warm text-brand-navy font-medium rounded-control px-6 py-3 transition-colors"
+              >
+                Crear mi fraternidad
+              </Link>
+            </div>
+          </Reveal>
+        </div>
       </section>
 
-      {/* Brand positioning */}
-      <section id="marca" className="bg-white border-y border-surface-border">
+      {/* Perfiles */}
+      <section id="perfiles" className="max-w-6xl mx-auto px-6 py-20">
+        <Reveal>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-ink mb-3">Cada quien ve lo que le corresponde</h2>
+            <p className="text-slate-500 max-w-xl mx-auto">
+              Tres perfiles con permisos distintos, para que la información sensible quede donde tiene que estar.
+            </p>
+          </div>
+        </Reveal>
+        <div className="grid md:grid-cols-3 gap-5">
+          {PROFILES.map((p, i) => (
+            <Reveal key={p.title} delay={i * 100}>
+              <div className="h-full bg-white rounded-card border border-surface-border p-6">
+                <div className={`w-11 h-11 rounded-control ${p.bg} flex items-center justify-center mb-4`}>
+                  <p.icon className={`w-6 h-6 ${p.color}`} />
+                </div>
+                <h3 className="font-semibold text-ink mb-3">{p.title}</h3>
+                <ul className="space-y-2">
+                  {p.items.map((it) => (
+                    <li key={it} className="flex gap-2 text-sm text-slate-500">
+                      <span className="text-brand-primary mt-0.5 shrink-0">·</span>
+                      {it}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* Rasgos de marca */}
+      <section className="bg-white border-y border-surface-border">
         <div className="max-w-6xl mx-auto px-6 py-20 grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {TRAITS.map((t) => (
-            <div key={t.title}>
-              <div className="w-12 h-12 mx-auto rounded-full bg-brand-primary/10 flex items-center justify-center mb-4">
-                <t.icon className="w-6 h-6 text-brand-primary-dark" />
+          {TRAITS.map((t, i) => (
+            <Reveal key={t.title} delay={i * 80}>
+              <div>
+                <div className="w-12 h-12 mx-auto rounded-full bg-brand-primary/10 flex items-center justify-center mb-4">
+                  <t.icon className="w-6 h-6 text-brand-primary-dark" />
+                </div>
+                <h3 className="font-semibold text-ink mb-2">{t.title}</h3>
+                <p className="text-sm text-slate-500">{t.description}</p>
               </div>
-              <h3 className="font-semibold text-ink mb-2">{t.title}</h3>
-              <p className="text-sm text-slate-500">{t.description}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="max-w-4xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold text-ink mb-4">Empieza a organizar tu fraternidad hoy</h2>
-        <p className="text-slate-500 mb-8">Crea tu cuenta y configura tu fraternidad en menos de dos minutos.</p>
-        <Link
-          to="/registro"
-          className="inline-block bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-8 py-3"
-        >
-          Crear cuenta gratis
-        </Link>
+      {/* Preguntas frecuentes */}
+      <section id="preguntas" className="max-w-3xl mx-auto px-6 py-20">
+        <Reveal>
+          <h2 className="text-3xl font-bold text-ink text-center mb-10">Preguntas frecuentes</h2>
+        </Reveal>
+        <div className="space-y-3">
+          {FAQS.map((f, i) => (
+            <Reveal key={f.q} delay={i * 70}>
+              <details className="group bg-white rounded-card border border-surface-border p-5">
+                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none font-medium text-ink">
+                  {f.q}
+                  <span className="text-brand-primary text-xl leading-none transition-transform group-open:rotate-45 shrink-0">
+                    +
+                  </span>
+                </summary>
+                <p className="text-sm text-slate-500 mt-3">{f.a}</p>
+              </details>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA final */}
+      <section className="max-w-4xl mx-auto px-6 pb-24 text-center">
+        <Reveal>
+          <h2 className="text-3xl font-bold text-ink mb-4">Empieza a organizar tu fraternidad hoy</h2>
+          <p className="text-slate-500 mb-8">Crea tu cuenta y configura tu fraternidad en menos de dos minutos.</p>
+          <Link
+            to="/registro"
+            className="inline-block bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-8 py-3 transition-colors"
+          >
+            Crear cuenta gratis
+          </Link>
+        </Reveal>
       </section>
 
       <footer className="border-t border-surface-border">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <img src={isotipo} alt="FraterCloud" className="h-6 w-6 opacity-80" />
-          <p className="text-xs text-slate-400">© {new Date().getFullYear()} FraterCloud. Todos los derechos reservados.</p>
+          <p className="text-xs text-slate-400">
+            © {new Date().getFullYear()} FraterCloud. Todos los derechos reservados.
+          </p>
         </div>
       </footer>
     </div>
   )
 }
 
-function HeroMockup() {
+// ---------- Aparición al hacer scroll ----------
+
+/**
+ * Envuelve una sección y la revela con un fade+slide cuando entra en pantalla.
+ * Si el navegador reporta `prefers-reduced-motion`, el CSS deja todo visible sin animar.
+ */
+function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || shown) return
+
+    // Se comprueba la posición directamente en vez de usar IntersectionObserver:
+    // el observador no re-evalúa de forma fiable tras un salto por ancla (#preguntas),
+    // y eso dejaba secciones enteras atrapadas en opacidad 0 —invisibles para el visitante.
+    // La condición cubre tanto "entrando desde abajo" como "ya quedó arriba".
+    const check = () => {
+      const top = el.getBoundingClientRect().top
+      if (top < window.innerHeight - 40) {
+        setShown(true)
+        return true
+      }
+      return false
+    }
+
+    if (check()) return
+
+    let raf = 0
+    const onMove = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(check)
+    }
+    window.addEventListener('scroll', onMove, { passive: true })
+    window.addEventListener('resize', onMove)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onMove)
+      window.removeEventListener('resize', onMove)
+    }
+  }, [shown])
+
   return (
-    <div className="bg-white rounded-card border border-surface-border shadow-card p-4">
-      <div className="flex items-center gap-1.5 mb-3">
-        <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
-        <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
-        <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
+    <div ref={ref} className={`fc-reveal${shown ? ' fc-revealed' : ''}`} style={{ animationDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  )
+}
+
+// ---------- Panel interactivo de demostración ----------
+
+type DemoTab = 'deudores' | 'finanzas' | 'reservas' | 'bar'
+
+const DEMO_TABS: { id: DemoTab; label: string; icon: (p: { className?: string }) => ReactElement }[] = [
+  { id: 'deudores', label: 'Deudores', icon: IconClipboard },
+  { id: 'finanzas', label: 'Finanzas', icon: IconChart },
+  { id: 'reservas', label: 'Reservas', icon: IconCalendar },
+  { id: 'bar', label: 'Bar', icon: IconGlass },
+]
+
+/**
+ * Panel simulado y navegable. Está construido con React y CSS —no es una captura
+ * de pantalla— y usa nombres de ejemplo, no datos de ninguna fraternidad real.
+ * Rota solo hasta que el visitante hace clic; ahí el control pasa a él.
+ */
+function PanelDemo() {
+  const [tab, setTab] = useState<DemoTab>('deudores')
+  const [userTook, setUserTook] = useState(false)
+
+  useEffect(() => {
+    if (userTook) return
+    const id = setInterval(() => {
+      setTab((cur) => {
+        const i = DEMO_TABS.findIndex((t) => t.id === cur)
+        return DEMO_TABS[(i + 1) % DEMO_TABS.length].id
+      })
+    }, 3500)
+    return () => clearInterval(id)
+  }, [userTook])
+
+  function pick(id: DemoTab) {
+    setUserTook(true)
+    setTab(id)
+  }
+
+  return (
+    <div>
+      <div className="bg-white rounded-card border border-surface-border shadow-card overflow-hidden">
+        {/* Barra de ventana */}
+        <div className="flex items-center gap-1.5 px-4 py-3 border-b border-surface-border bg-surface-warm/50">
+          <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
+          <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
+          <span className="w-2.5 h-2.5 rounded-full bg-surface-muted" />
+          <span className="ml-3 text-[10px] font-medium text-slate-400">Vista de ejemplo · hacé clic para explorar</span>
+        </div>
+
+        <div className="flex min-h-[280px]">
+          {/* Barra lateral simulada */}
+          <div className="w-28 sm:w-32 shrink-0 border-r border-surface-border p-2 space-y-1 bg-white" role="tablist" aria-label="Secciones del panel de ejemplo">
+            {DEMO_TABS.map((t) => {
+              const active = t.id === tab
+              return (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => pick(t.id)}
+                  className={`w-full flex items-center gap-1.5 rounded-control px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                    active ? 'bg-brand-primary/10 text-brand-primary-dark' : 'text-slate-500 hover:bg-surface-muted'
+                  }`}
+                >
+                  <t.icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Contenido */}
+          <div className="flex-1 p-4 min-w-0" role="tabpanel">
+            {tab === 'deudores' && <DemoDeudores />}
+            {tab === 'finanzas' && <DemoFinanzas />}
+            {tab === 'reservas' && <DemoReservas />}
+            {tab === 'bar' && <DemoBar />}
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-1 space-y-2">
-          <div className="h-3 w-3/4 rounded bg-brand-primary/20" />
-          <div className="h-2 w-full rounded bg-surface-muted" />
-          <div className="h-2 w-full rounded bg-surface-muted" />
-          <div className="h-2 w-2/3 rounded bg-surface-muted" />
-          <div className="h-6 w-full rounded-control bg-brand-gold/15 mt-3" />
-        </div>
-        <div className="col-span-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-24 rounded bg-ink/10" />
-            <div className="h-5 w-16 rounded-control bg-brand-primary" />
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 21 }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-4 rounded-sm ${i === 10 ? 'bg-brand-primary' : i === 15 ? 'bg-brand-coral/60' : 'bg-surface-muted'}`}
-              />
-            ))}
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <div className="h-2 w-20 rounded bg-surface-muted" />
-            <div className="h-2 w-10 rounded bg-brand-primary/40" />
-          </div>
-        </div>
+
+      {/* Puntos indicadores */}
+      <div className="flex justify-center gap-1.5 mt-3">
+        {DEMO_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => pick(t.id)}
+            aria-label={`Ver ${t.label}`}
+            className={`h-1.5 rounded-full transition-all ${t.id === tab ? 'w-5 bg-brand-primary' : 'w-1.5 bg-surface-muted'}`}
+          />
+        ))}
       </div>
     </div>
   )
 }
+
+function DemoTitle({ children }: { children: ReactNode }) {
+  return <p className="text-xs font-semibold text-ink mb-3">{children}</p>
+}
+
+function DemoDeudores() {
+  const rows = [
+    { name: 'Carlos M.', amount: '3.910,00', months: '12 meses', blocked: true },
+    { name: 'Roberto S.', amount: '2.610,00', months: '6 meses', blocked: true },
+    { name: 'Javier P.', amount: '600,00', months: '2 meses', blocked: true },
+    { name: 'Andrés L.', amount: '300,00', months: '1 mes', blocked: false },
+  ]
+  return (
+    <div className="animate-[fc-fade-up_0.35s_ease-out]">
+      <DemoTitle>Deudores</DemoTitle>
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center justify-between gap-2 rounded-control border border-surface-border px-2.5 py-1.5">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-ink truncate">{r.name}</p>
+              <p className="text-[10px] text-slate-400">{r.months}</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {r.blocked && (
+                <span className="text-[9px] font-semibold text-brand-alert bg-brand-alert/10 rounded-full px-1.5 py-0.5">
+                  Bloqueado
+                </span>
+              )}
+              <span className="text-[11px] font-semibold text-brand-gold">Bs {r.amount}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DemoFinanzas() {
+  const rows = [
+    { d: '22/07', c: 'Aporte mensual', in: '300,00', out: '' },
+    { d: '20/07', c: 'Luz — Gastos Fijos', in: '', out: '180,00' },
+    { d: '18/07', c: 'Aporte mensual', in: '300,00', out: '' },
+    { d: '15/07', c: 'Limpieza de piscina', in: '', out: '250,00' },
+  ]
+  return (
+    <div className="animate-[fc-fade-up_0.35s_ease-out]">
+      <DemoTitle>Ingresos y egresos</DemoTitle>
+      <div className="grid grid-cols-3 gap-1.5 mb-3">
+        <div className="rounded-control bg-brand-primary/5 px-2 py-1.5">
+          <p className="text-[9px] text-slate-500">Ingresos</p>
+          <p className="text-[11px] font-bold text-brand-primary">Bs 8.450</p>
+        </div>
+        <div className="rounded-control bg-brand-alert/5 px-2 py-1.5">
+          <p className="text-[9px] text-slate-500">Egresos</p>
+          <p className="text-[11px] font-bold text-brand-alert">Bs 3.120</p>
+        </div>
+        <div className="rounded-control bg-surface-muted/60 px-2 py-1.5">
+          <p className="text-[9px] text-slate-500">Balance</p>
+          <p className="text-[11px] font-bold text-ink">Bs 5.330</p>
+        </div>
+      </div>
+      <table className="w-full text-[10px] table-fixed">
+        <thead>
+          <tr className="text-slate-400 text-left">
+            <th className="font-medium pb-1 pr-2 w-[18%]">Fecha</th>
+            <th className="font-medium pb-1 pr-2">Concepto</th>
+            <th className="font-medium pb-1 text-right w-[20%]">Ingreso</th>
+            <th className="font-medium pb-1 text-right w-[20%]">Egreso</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-surface-border">
+          {rows.map((r, i) => (
+            <tr key={i}>
+              <td className="py-1 pr-2 text-slate-500 whitespace-nowrap">{r.d}</td>
+              <td className="py-1 pr-2 text-ink truncate">{r.c}</td>
+              <td className="py-1 text-right text-brand-primary font-medium whitespace-nowrap">{r.in}</td>
+              <td className="py-1 text-right text-brand-alert font-medium whitespace-nowrap">{r.out}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function DemoReservas() {
+  const reserved = [4, 11, 18]
+  const blocked = [25]
+  return (
+    <div className="animate-[fc-fade-up_0.35s_ease-out]">
+      <DemoTitle>Reservas de la sede</DemoTitle>
+      <div className="grid grid-cols-7 gap-1 mb-3">
+        {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
+          <div key={i} className="text-center text-[9px] font-semibold text-slate-400">
+            {d}
+          </div>
+        ))}
+        {Array.from({ length: 28 }).map((_, i) => {
+          const day = i + 1
+          const isRes = reserved.includes(day)
+          const isBlk = blocked.includes(day)
+          return (
+            <div
+              key={day}
+              className={`aspect-square rounded-sm flex items-center justify-center text-[9px] font-medium ${
+                isRes
+                  ? 'bg-brand-primary text-white'
+                  : isBlk
+                    ? 'bg-brand-coral/70 text-white'
+                    : 'bg-surface-muted/50 text-slate-400'
+              }`}
+            >
+              {day}
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex flex-wrap gap-3 text-[9px] text-slate-500">
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-brand-primary" /> Reservado
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-brand-coral/70" /> Bloqueado
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function DemoBar() {
+  const items = [
+    { n: 'Whisky', stock: 6, margin: '60,00' },
+    { n: 'Cerveza', stock: 48, margin: '8,00' },
+    { n: 'Coca-Cola 2L', stock: 3, margin: '5,00', low: true },
+    { n: 'Cigarros', stock: 22, margin: '4,00' },
+  ]
+  return (
+    <div className="animate-[fc-fade-up_0.35s_ease-out]">
+      <DemoTitle>Bar — inventario y caja</DemoTitle>
+      <div className="grid grid-cols-2 gap-1.5 mb-3">
+        <div className="rounded-control bg-brand-primary/5 px-2 py-1.5">
+          <p className="text-[9px] text-slate-500">Caja del bar</p>
+          <p className="text-[11px] font-bold text-brand-primary">Bs 1.445</p>
+        </div>
+        <div className="rounded-control bg-surface-muted/60 px-2 py-1.5">
+          <p className="text-[9px] text-slate-500">Ganancia</p>
+          <p className="text-[11px] font-bold text-ink">Bs 620</p>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {items.map((it) => (
+          <div key={it.n} className="flex items-center justify-between gap-2 text-[10px] border-b border-surface-border pb-1">
+            <span className="text-ink truncate">{it.n}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-slate-400">margen Bs {it.margin}</span>
+              <span className={`font-semibold ${it.low ? 'text-brand-alert' : 'text-slate-600'}`}>
+                {it.stock} {it.low && '⚠'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Iconos ----------
 
 function IconWallet({ className }: { className?: string }) {
   return (
@@ -306,22 +787,40 @@ function IconChart({ className }: { className?: string }) {
   )
 }
 
-function IconGift({ className }: { className?: string }) {
+function IconGlass({ className }: { className?: string }) {
+  // Vaso con pie: copa simétrica, tallo centrado y base.
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <rect x="4" y="9.5" width="16" height="10.5" rx="1.5" />
-      <path d="M4 13.5h16" />
-      <path d="M12 9.5V20M12 9.5C10 6 6.5 6 6.5 8.2 6.5 9.8 9 9.5 12 9.5ZM12 9.5C14 6 17.5 6 17.5 8.2c0 1.6-2.5 1.3-5.5 1.3Z" strokeLinejoin="round" />
+      <path d="M6 3h12l-1.2 6a4.9 4.9 0 0 1-9.6 0z" strokeLinejoin="round" />
+      <path d="M12 14v6" strokeLinecap="round" />
+      <path d="M8.5 20h7" strokeLinecap="round" />
     </svg>
   )
 }
 
-function IconBuilding({ className }: { className?: string }) {
+function IconDownload({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <rect x="4" y="3" width="10" height="18" rx="1" />
-      <rect x="14" y="9" width="6" height="12" rx="1" />
-      <path d="M7 7h1M10 7h1M7 11h1M10 11h1M7 15h1M10 15h1" strokeLinecap="round" />
+      <path d="M12 4v11M8 11l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconUser({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4.5 20c1.5-4 4.5-6 7.5-6s6 2 7.5 6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconShieldCheck({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M12 3 4.5 6v6c0 5 3.2 8.2 7.5 9 4.3-.8 7.5-4 7.5-9V6z" strokeLinejoin="round" />
+      <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

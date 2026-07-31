@@ -20,6 +20,10 @@
   --radius-card: 12px;
   --radius-lg: 20px;
 
+  /* Punto de quiebre extra para pantallas muy angostas (< 400 px), donde el
+     logo y los botones del encabezado compiten por el espacio. */
+  --breakpoint-xs: 400px;
+
   --shadow-card: 0 8px 24px rgba(11, 29, 58, 0.1);
 }
 
@@ -44,4 +48,35 @@ h3 {
 :focus-visible {
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
+}
+
+/* Aparición al hacer scroll (landing). El estado inicial solo se aplica
+   mientras el elemento aún no fue revelado, para que sin JS nada quede oculto. */
+@keyframes fc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fc-reveal {
+  opacity: 0;
+}
+
+.fc-reveal.fc-revealed {
+  animation: fc-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Respeta a quien pidió menos movimiento: todo aparece de una, sin animar. */
+@media (prefers-reduced-motion: reduce) {
+  .fc-reveal,
+  .fc-reveal.fc-revealed {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
 }
