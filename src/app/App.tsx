@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import Landing from './pages/Landing'
 import PreciosPage from './pages/PreciosPage'
+import PlataformaPage from './pages/PlataformaPage'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Onboarding from './pages/Onboarding'
@@ -23,22 +24,34 @@ import PrintMemberStatementView from './pages/PrintMemberStatementView'
 import BarPage from './pages/BarPage'
 import RecibosPage from './pages/RecibosPage'
 
-function postAuthRedirect(fraternityUser: unknown) {
+function postAuthRedirect(fraternityUser: unknown, isPlatformAdmin = false) {
+  if (isPlatformAdmin) return '/plataforma'
   return fraternityUser ? '/dashboard' : '/onboarding'
 }
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { session, fraternityUser, loading } = useAuth()
+/** El panel del dueño del sistema. No exige pertenecer a una fraternidad. */
+function RequirePlatformAdmin({ children }: { children: React.ReactNode }) {
+  const { session, isPlatformAdmin, loading } = useAuth()
   if (loading) return <FullscreenLoader />
   if (!session) return <Navigate to="/login" replace />
+  if (!isPlatformAdmin) return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { session, fraternityUser, isPlatformAdmin, loading } = useAuth()
+  if (loading) return <FullscreenLoader />
+  if (!session) return <Navigate to="/login" replace />
+  if (isPlatformAdmin) return <Navigate to="/plataforma" replace />
   if (!fraternityUser) return <Navigate to="/onboarding" replace />
   return <>{children}</>
 }
 
 function RequireSessionOnly({ children }: { children: React.ReactNode }) {
-  const { session, fraternityUser, loading } = useAuth()
+  const { session, fraternityUser, isPlatformAdmin, loading } = useAuth()
   if (loading) return <FullscreenLoader />
   if (!session) return <Navigate to="/login" replace />
+  if (isPlatformAdmin) return <Navigate to="/plataforma" replace />
   if (fraternityUser) return <Navigate to={postAuthRedirect(fraternityUser)} replace />
   return <>{children}</>
 }
@@ -60,9 +73,9 @@ function RequireBar({ children }: { children: React.ReactNode }) {
 }
 
 function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
-  const { session, fraternityUser, loading } = useAuth()
+  const { session, fraternityUser, isPlatformAdmin, loading } = useAuth()
   if (loading) return <FullscreenLoader />
-  if (session) return <Navigate to={postAuthRedirect(fraternityUser)} replace />
+  if (session) return <Navigate to={postAuthRedirect(fraternityUser, isPlatformAdmin)} replace />
   return <>{children}</>
 }
 
@@ -75,6 +88,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/precios" element={<PreciosPage />} />
+      <Route path="/plataforma" element={<RequirePlatformAdmin><PlataformaPage /></RequirePlatformAdmin>} />
       <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
       <Route path="/registro" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
       <Route path="/olvide-password" element={<RedirectIfAuthed><ForgotPassword /></RedirectIfAuthed>} />

@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
-import { getMyFraternityUser } from '../lib/auth'
+import { getMyFraternityUser, amIPlatformAdmin } from '../lib/auth'
 import type { FraternityUser } from '../lib/types'
 
 interface AuthState {
   session: Session | null
   fraternityUser: FraternityUser | null
+  /** El dueño del sistema. No pertenece a ninguna fraternidad. */
+  isPlatformAdmin: boolean
   loading: boolean
   refreshFraternityUser: () => Promise<void>
 }
@@ -16,11 +18,15 @@ const AuthContext = createContext<AuthState | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [fraternityUser, setFraternityUser] = useState<FraternityUser | null>(null)
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   async function refreshFraternityUser() {
-    const fu = await getMyFraternityUser()
+    // El dueño de la plataforma no tiene fila en fraternity_users, así que las
+    // dos consultas son independientes: una sin resultado no invalida la otra.
+    const [fu, plataforma] = await Promise.all([getMyFraternityUser(), amIPlatformAdmin()])
     setFraternityUser(fu)
+    setIsPlatformAdmin(plataforma)
   }
 
   useEffect(() => {
@@ -54,9 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await refreshFraternityUser()
         } catch {
           setFraternityUser(null)
+          setIsPlatformAdmin(false)
         }
       } else {
         setFraternityUser(null)
+        setIsPlatformAdmin(false)
       }
     })
 
@@ -64,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, fraternityUser, loading, refreshFraternityUser }}>
+    <AuthContext.Provider value={{ session, fraternityUser, isPlatformAdmin, loading, refreshFraternityUser }}>
       {children}
     </AuthContext.Provider>
   )

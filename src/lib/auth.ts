@@ -18,6 +18,16 @@ export async function signOut() {
   if (error) throw error
 }
 
+/** ¿La sesión actual es la del dueño del sistema? */
+export async function amIPlatformAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_platform_admin')
+  if (error) {
+    console.error('No se pudo verificar el rol de plataforma', error)
+    return false
+  }
+  return data === true
+}
+
 /** Envía el correo con el enlace para elegir una contraseña nueva. */
 export async function requestPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
