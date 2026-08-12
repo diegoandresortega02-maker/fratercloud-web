@@ -53,11 +53,11 @@ const PLANES = [
   },
   {
     nombre: 'Plus',
-    descripcion: 'El punto justo para la mayoría: suma eventos, turnos y reportes.',
+    descripcion: 'Suma eventos, turnos y los reportes completos para el directorio.',
     porPago: { anual: 1650, semestral: 910, trimestral: 500 },
     fraternos: 20,
     extras: 'hasta 5 fraternos extra',
-    destacado: true,
+    destacado: false,
     caracteristicas: [
       { texto: 'Hasta 20 fraternos', icono: <Users size={20} /> },
       { texto: 'Eventos y cuotas extraordinarias', icono: <PartyPopper size={20} /> },
@@ -73,11 +73,11 @@ const PLANES = [
   },
   {
     nombre: 'Gold',
-    descripcion: 'Todo el sistema, incluido el bar con su caja y sus arqueos.',
+    descripcion: 'El sistema completo, con el bar y sin tope de fraternos.',
     porPago: { anual: 2500, semestral: 1375, trimestral: 750 },
     fraternos: 30,
     extras: 'fraternos extra sin límite',
-    destacado: false,
+    destacado: true,
     caracteristicas: [
       { texto: 'Hasta 30 fraternos', icono: <Users size={20} /> },
       { texto: 'Módulo Bar con caja separada', icono: <Beer size={20} /> },
@@ -181,7 +181,7 @@ export default function PricingSection({ ctaHref = '/registro' }: { ctaHref?: st
                     <h3 className="text-2xl font-bold text-ink">{plan.nombre}</h3>
                     {plan.destacado && (
                       <span className="shrink-0 rounded-full bg-brand-primary px-3 py-1 text-xs font-semibold text-white">
-                        El más elegido
+                        Recomendado
                       </span>
                     )}
                   </div>
