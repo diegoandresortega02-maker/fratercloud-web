@@ -42,6 +42,23 @@ export async function updatePassword(newPassword: string) {
   if (error) throw error
 }
 
+/** Interruptores del plan de mi fraternidad. */
+export type PlanFeatures = Record<string, boolean>
+
+/**
+ * Qué funciones tiene habilitadas mi fraternidad según su plan.
+ *
+ * Va por RPC y no leyendo `subscriptions` a propósito: la suscripción solo la
+ * puede leer el administrador, pero el encargado del bar también necesita saber
+ * si su módulo está habilitado. Esto le da los interruptores sin mostrarle
+ * cuánto paga la fraternidad ni cuándo vence.
+ */
+export async function getMyPlanFeatures(): Promise<PlanFeatures> {
+  const { data, error } = await supabase.rpc('my_plan_features')
+  if (error) throw error
+  return (data as PlanFeatures) ?? {}
+}
+
 export type EmailAccountStatus = 'unknown' | 'has_account' | 'no_account'
 
 /** Deja constancia de un intento fallido. Nunca debe romper el flujo de login. */

@@ -4,14 +4,21 @@ import { signOut } from '../../lib/auth'
 import { useAuth } from '../AuthContext'
 import isotipo from '../../assets/brand/isotipo.png'
 
-const navItems = [
+/** `feature` apunta a un interruptor del plan; si el plan lo apaga, no se muestra. */
+const navItems: {
+  to: string
+  label: string
+  adminOnly?: boolean
+  barOnly?: boolean
+  feature?: string
+}[] = [
   { to: '/dashboard', label: 'Inicio' },
   { to: '/pagos', label: 'Pagos' },
   { to: '/reservas', label: 'Reservas' },
-  { to: '/turnos', label: 'Turnos' },
+  { to: '/turnos', label: 'Turnos', feature: 'turnos' },
   { to: '/bar', label: 'Bar', barOnly: true },
   { to: '/cumpleanos', label: 'Cumpleaños' },
-  { to: '/eventos', label: 'Eventos', adminOnly: true },
+  { to: '/eventos', label: 'Eventos', adminOnly: true, feature: 'eventos' },
   { to: '/deudores', label: 'Deudores', adminOnly: true },
   { to: '/aprobaciones', label: 'Gestión de pagos', adminOnly: true },
   { to: '/registro-recibos', label: 'Recibos', adminOnly: true },
@@ -21,13 +28,16 @@ const navItems = [
 
 export default function Layout() {
   const navigate = useNavigate()
-  const { fraternityUser } = useAuth()
+  const { fraternityUser, features } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAdmin = fraternityUser?.role === 'admin'
-  const canSeeBar = isAdmin || fraternityUser?.role === 'bar'
+  // El bar pide las dos cosas: el rol adecuado y que el plan lo incluya.
+  // La base ya lo bloquea; esto evita ofrecer una puerta que no abre.
+  const canSeeBar = (isAdmin || fraternityUser?.role === 'bar') && features.bar !== false
   const visibleNavItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin) return false
     if (item.barOnly && !canSeeBar) return false
+    if (item.feature && features[item.feature] === false) return false
     return true
   })
 

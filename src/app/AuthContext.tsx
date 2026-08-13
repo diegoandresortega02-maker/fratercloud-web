@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
-import { getMyFraternityUser, amIPlatformAdmin } from '../lib/auth'
+import { getMyFraternityUser, amIPlatformAdmin, getMyPlanFeatures, type PlanFeatures } from '../lib/auth'
 import type { FraternityUser } from '../lib/types'
 
 interface AuthState {
@@ -9,6 +9,8 @@ interface AuthState {
   fraternityUser: FraternityUser | null
   /** El dueño del sistema. No pertenece a ninguna fraternidad. */
   isPlatformAdmin: boolean
+  /** Qué funciones habilita el plan de la fraternidad. */
+  features: PlanFeatures
   loading: boolean
   refreshFraternityUser: () => Promise<void>
 }
@@ -19,14 +21,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [fraternityUser, setFraternityUser] = useState<FraternityUser | null>(null)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+  const [features, setFeatures] = useState<PlanFeatures>({})
   const [loading, setLoading] = useState(true)
 
   async function refreshFraternityUser() {
     // El dueño de la plataforma no tiene fila en fraternity_users, así que las
-    // dos consultas son independientes: una sin resultado no invalida la otra.
-    const [fu, plataforma] = await Promise.all([getMyFraternityUser(), amIPlatformAdmin()])
+    // consultas son independientes: una sin resultado no invalida a las otras.
+    const [fu, plataforma, feats] = await Promise.all([
+      getMyFraternityUser(),
+      amIPlatformAdmin(),
+      getMyPlanFeatures().catch(() => ({}) as PlanFeatures),
+    ])
     setFraternityUser(fu)
     setIsPlatformAdmin(plataforma)
+    setFeatures(feats)
   }
 
   useEffect(() => {
@@ -61,10 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           setFraternityUser(null)
           setIsPlatformAdmin(false)
+          setFeatures({})
         }
       } else {
         setFraternityUser(null)
         setIsPlatformAdmin(false)
+        setFeatures({})
       }
     })
 
@@ -72,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, fraternityUser, isPlatformAdmin, loading, refreshFraternityUser }}>
+    <AuthContext.Provider value={{ session, fraternityUser, isPlatformAdmin, features, loading, refreshFraternityUser }}>
       {children}
     </AuthContext.Provider>
   )

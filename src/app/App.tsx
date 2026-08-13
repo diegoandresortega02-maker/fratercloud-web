@@ -63,12 +63,17 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-/** El bar solo lo ven el encargado de bar y el administrador. */
+/**
+ * El bar pide dos condiciones: el rol adecuado y que el plan lo incluya.
+ * La base de datos ya bloquea los datos; esto solo evita mostrar una pantalla
+ * vacía a quien entre escribiendo la URL.
+ */
 function RequireBar({ children }: { children: React.ReactNode }) {
-  const { fraternityUser, loading } = useAuth()
+  const { fraternityUser, features, loading } = useAuth()
   if (loading) return <FullscreenLoader />
   const role = fraternityUser?.role
   if (role !== 'bar' && role !== 'admin') return <Navigate to="/dashboard" replace />
+  if (features.bar === false) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
