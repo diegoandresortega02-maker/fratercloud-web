@@ -41,6 +41,31 @@ export interface PagoMembresia {
   review_notes: string | null
 }
 
+export interface DatosDeCobro {
+  bank_name: string | null
+  account_holder: string | null
+  account_number: string | null
+  qr_url: string | null
+  qr_expires_on: string | null
+  instructions: string | null
+}
+
+/**
+ * A dónde le paga la fraternidad a FraterCloud.
+ *
+ * Vive en la base y no en el código porque el QR del banco caduca y la cuenta
+ * puede cambiar: así se actualiza sin desplegar. La imagen del QR sí está en el
+ * repositorio, así que reemplazarla es lo único que todavía pide un despliegue.
+ */
+export async function getDatosDeCobro(): Promise<DatosDeCobro | null> {
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .select('bank_name, account_holder, account_number, qr_url, qr_expires_on, instructions')
+    .maybeSingle()
+  if (error) throw error
+  return (data as DatosDeCobro) ?? null
+}
+
 export interface CupoFraternos {
   cupo: number | null
   activos: number

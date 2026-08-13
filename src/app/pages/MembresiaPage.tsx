@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { BadgeCheck, Minus } from 'lucide-react'
 import {
   getCupoFraternos,
+  getDatosDeCobro,
   getMiSuscripcion,
   getMisPagosMembresia,
   getUrlComprobante,
@@ -10,6 +11,7 @@ import {
   RECARGOS,
   type BillingCycle,
   type CupoFraternos,
+  type DatosDeCobro,
   type MiSuscripcion,
   type PagoMembresia,
 } from '../../lib/membership'
@@ -55,6 +57,7 @@ export default function MembresiaPage() {
   const [sus, setSus] = useState<MiSuscripcion | null>(null)
   const [cupo, setCupo] = useState<CupoFraternos | null>(null)
   const [pagos, setPagos] = useState<PagoMembresia[]>([])
+  const [cobro, setCobro] = useState<DatosDeCobro | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,14 +68,16 @@ export default function MembresiaPage() {
 
   async function cargar() {
     try {
-      const [s, c, p] = await Promise.all([
+      const [s, c, p, dc] = await Promise.all([
         getMiSuscripcion(),
         getCupoFraternos(),
         getMisPagosMembresia(),
+        getDatosDeCobro().catch(() => null),
       ])
       setSus(s)
       setCupo(c)
       setPagos(p)
+      setCobro(dc)
       if (s) setCiclo(s.cycle)
     } catch (err) {
       console.error(err)
@@ -209,8 +214,36 @@ export default function MembresiaPage() {
             <div className="rounded-card border border-surface-border bg-white p-6">
               <h2 className="font-semibold text-ink mb-1">Renovar</h2>
               <p className="text-sm text-slate-500 mb-4">
-                Transferí el monto y subí el comprobante. Lo revisamos y extendemos la vigencia.
+                Pagá el monto y subí el comprobante.
               </p>
+
+              {cobro && (
+                <div className="mb-5 rounded-control border border-surface-border bg-surface-warm p-4">
+                  <div className="flex gap-4 items-start">
+                    {cobro.qr_url && (
+                      <img
+                        src={cobro.qr_url}
+                        alt="Código QR para pagar la membresía"
+                        className="w-32 h-32 rounded-control bg-white object-contain shrink-0"
+                      />
+                    )}
+                    <div className="text-sm min-w-0">
+                      <p className="font-semibold text-ink mb-1">Escaneá el QR desde tu app del banco</p>
+                      <p className="text-slate-600">o transferí a:</p>
+                      <p className="text-slate-600 mt-1">
+                        <strong className="text-ink">{cobro.bank_name}</strong>
+                        <br />
+                        {cobro.account_holder}
+                        <br />
+                        Cta. <span className="font-mono">{cobro.account_number}</span>
+                      </p>
+                    </div>
+                  </div>
+                  {cobro.instructions && (
+                    <p className="text-xs text-slate-500 mt-3">{cobro.instructions}</p>
+                  )}
+                </div>
+              )}
 
               <form onSubmit={enviarPago} className="space-y-4">
                 <div>
