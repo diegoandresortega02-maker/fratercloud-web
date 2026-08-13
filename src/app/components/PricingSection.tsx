@@ -1,16 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import NumberFlow from '@number-flow/react'
-import {
-  BadgeCheck,
-  Beer,
-  CalendarCheck,
-  FileSpreadsheet,
-  PartyPopper,
-  Receipt,
-  ShieldCheck,
-  Users,
-} from 'lucide-react'
+import { BadgeCheck, Minus, Users } from 'lucide-react'
+import { supabase } from '../../lib/supabaseClient'
 import Reveal from './Reveal'
 
 /**
@@ -18,82 +10,46 @@ import Reveal from './Reveal'
  * cada cobro extra es un comprobante que alguien tiene que revisar a mano.
  */
 const CICLOS = [
-  { id: 'anual', etiqueta: 'Anual', pagos: 1, nota: 'Sin recargo' },
-  { id: 'semestral', etiqueta: 'Semestral', pagos: 2, nota: '+10%' },
-  { id: 'trimestral', etiqueta: 'Trimestral', pagos: 4, nota: '+20%' },
+  { id: 'anual', etiqueta: 'Anual', pagos: 1, recargo: 1, nota: 'Sin recargo' },
+  { id: 'semestral', etiqueta: 'Semestral', pagos: 2, recargo: 1.1, nota: '+10%' },
+  { id: 'trimestral', etiqueta: 'Trimestral', pagos: 4, recargo: 1.2, nota: '+20%' },
 ] as const
 
 type CicloId = (typeof CICLOS)[number]['id']
 
-/**
- * Los importes por pago están escritos, no calculados: aplicar el recargo con
- * una multiplicación deja precios como Bs 907,50, que en una página de precios
- * se leen como error de sistema.
- */
-const PLANES = [
-  {
-    nombre: 'Esencial',
-    descripcion: 'Para fraternidades chicas que quieren dejar la planilla atrás.',
-    porPago: { anual: 950, semestral: 525, trimestral: 290 },
-    fraternos: 15,
-    extras: 'hasta 5 fraternos extra',
-    destacado: false,
-    caracteristicas: [
-      { texto: 'Hasta 15 fraternos', icono: <Users size={20} /> },
-      { texto: 'Reservas con bloqueo por mora', icono: <CalendarCheck size={20} /> },
-      { texto: 'Recibos numerados automáticos', icono: <Receipt size={20} /> },
-    ],
-    incluye: [
-      'Incluye:',
-      'Mensualidades generadas solas',
-      'Deudores y planes de pago',
-      'Ingresos y egresos por categoría',
-      '1 administrador',
-    ],
-  },
-  {
-    nombre: 'Plus',
-    descripcion: 'Suma eventos, turnos y los reportes completos para el directorio.',
-    porPago: { anual: 1650, semestral: 910, trimestral: 500 },
-    fraternos: 20,
-    extras: 'hasta 5 fraternos extra',
-    destacado: false,
-    caracteristicas: [
-      { texto: 'Hasta 20 fraternos', icono: <Users size={20} /> },
-      { texto: 'Eventos y cuotas extraordinarias', icono: <PartyPopper size={20} /> },
-      { texto: 'Excel completo de 16 hojas', icono: <FileSpreadsheet size={20} /> },
-    ],
-    incluye: [
-      'Todo lo de Esencial, más:',
-      'Eventos con detalle de quién aportó',
-      'Turnos con rotación automática',
-      'Reportes por fraterno y por gestión',
-      '2 administradores',
-    ],
-  },
-  {
-    nombre: 'Gold',
-    descripcion: 'El sistema completo, con el bar y sin tope de fraternos.',
-    porPago: { anual: 2500, semestral: 1375, trimestral: 750 },
-    fraternos: 30,
-    extras: 'fraternos extra sin límite',
-    destacado: true,
-    caracteristicas: [
-      { texto: 'Hasta 30 fraternos', icono: <Users size={20} /> },
-      { texto: 'Módulo Bar con caja separada', icono: <Beer size={20} /> },
-      { texto: 'Arqueos y control de faltantes', icono: <ShieldCheck size={20} /> },
-    ],
-    incluye: [
-      'Todo lo de Plus, más:',
-      'Inventario, ventas y compras del bar',
-      'Perfil de encargado de bar',
-      'Fraternos extra sin límite',
-      '5 administradores',
-    ],
-  },
-] as const
+/** Los interruptores del plan, en el orden y con el nombre que ve el cliente. */
+const FUNCIONES: { clave: string; etiqueta: string }[] = [
+  { clave: 'reservas', etiqueta: 'Reservas con bloqueo por mora' },
+  { clave: 'recibos', etiqueta: 'Recibos numerados automáticos' },
+  { clave: 'finanzas', etiqueta: 'Ingresos y egresos por categoría' },
+  { clave: 'eventos', etiqueta: 'Eventos y cuotas extraordinarias' },
+  { clave: 'turnos', etiqueta: 'Turnos con rotación automática' },
+  { clave: 'excel_completo', etiqueta: 'Excel completo de 16 hojas' },
+  { clave: 'bar', etiqueta: 'Módulo Bar con caja y arqueos' },
+]
 
-const PRECIO_EXTRA = 55
+interface Plan {
+  code: string
+  name: string
+  description: string | null
+  price_annual: number
+  included_members: number
+  extra_member_price: number
+  max_extra_members: number | null
+  max_admins: number
+  features: Record<string, boolean>
+  sort_order: number
+}
+
+/**
+ * Importe de cada pago del ciclo, redondeado a múltiplos de 5.
+ *
+ * Sin redondear, aplicar el recargo deja precios como Bs 907,50, que en una
+ * página de precios se leen como error de sistema.
+ */
+function importePorPago(anual: number, recargo: number, pagos: number): number {
+  return Math.round((anual * recargo) / pagos / 5) * 5
+}
 
 function Selector({ ciclo, onChange }: { ciclo: CicloId; onChange: (c: CicloId) => void }) {
   const indice = CICLOS.findIndex((c) => c.id === ciclo)
@@ -104,8 +60,6 @@ function Selector({ ciclo, onChange }: { ciclo: CicloId; onChange: (c: CicloId) 
           texto ("Anual" es más corto) y la píldora, que se posiciona por tercios,
           termina montada sobre el botón vecino. */}
       <div className="relative grid grid-cols-3 w-full max-w-md rounded-full border border-surface-border bg-white p-1">
-        {/* La píldora se desliza con transform en vez de una librería de animación:
-            el mismo efecto sin sumar peso a una página que se abre desde el celular. */}
         <span
           aria-hidden
           className="absolute top-1 bottom-1 left-1 rounded-full bg-brand-primary shadow-sm transition-transform duration-300 ease-out"
@@ -120,7 +74,7 @@ function Selector({ ciclo, onChange }: { ciclo: CicloId; onChange: (c: CicloId) 
             type="button"
             onClick={() => onChange(c.id)}
             aria-pressed={ciclo === c.id}
-            className={`relative z-10 rounded-full px-2 sm:px-6 py-2 text-sm font-medium transition-colors ${
+            className={`relative z-10 rounded-full px-4 sm:px-6 py-2 text-sm font-medium transition-colors ${
               ciclo === c.id ? 'text-white' : 'text-slate-500 hover:text-ink'
             }`}
           >
@@ -134,7 +88,43 @@ function Selector({ ciclo, onChange }: { ciclo: CicloId; onChange: (c: CicloId) 
 
 export default function PricingSection({ ctaHref = '/registro' }: { ctaHref?: string }) {
   const [ciclo, setCiclo] = useState<CicloId>('anual')
+  const [planes, setPlanes] = useState<Plan[] | null>(null)
+  const [error, setError] = useState(false)
   const activo = CICLOS.find((c) => c.id === ciclo)!
+
+  // Los precios salen de la tabla `plans`, no del código: si se edita el plan
+  // desde el panel de plataforma, esta página cambia sola. La política
+  // `plans_lectura_publica` deja leer los planes públicos sin sesión.
+  useEffect(() => {
+    supabase
+      .from('plans')
+      .select('code,name,description,price_annual,included_members,extra_member_price,max_extra_members,max_admins,features,sort_order')
+      .eq('is_public', true)
+      .order('sort_order')
+      .then(({ data, error: err }) => {
+        if (err || !data?.length) {
+          console.error('No se pudieron cargar los planes', err)
+          setError(true)
+          return
+        }
+        setPlanes(data as Plan[])
+      })
+  }, [])
+
+  if (error) {
+    return (
+      <section id="precios" className="bg-surface-warm py-20 px-4">
+        <div className="max-w-xl mx-auto text-center">
+          <h2 className="text-2xl font-bold text-ink mb-3">No pudimos cargar los planes</h2>
+          <p className="text-slate-600">
+            Escribinos y te pasamos las opciones y los precios al día.
+          </p>
+        </div>
+      </section>
+    )
+  }
+
+  const precioExtra = planes?.[0]?.extra_member_price ?? 55
 
   return (
     <section id="precios" className="bg-surface-warm py-20 px-4">
@@ -164,101 +154,128 @@ export default function PricingSection({ ctaHref = '/registro' }: { ctaHref?: st
         </Reveal>
 
         <div className="grid md:grid-cols-3 gap-5 mt-10">
-          {PLANES.map((plan, i) => {
-            const porPago = plan.porPago[ciclo]
-            const alAnio = porPago * activo.pagos
+          {planes
+            ? planes.map((plan, i) => {
+                const porPago = importePorPago(Number(plan.price_annual), activo.recargo, activo.pagos)
+                const alAnio = porPago * activo.pagos
+                // El del medio se destaca: es el que conviene a la mayoría.
+                const destacado = i === 1
 
-            return (
-              <Reveal key={plan.nombre} delay={120 + i * 90}>
+                return (
+                  <Reveal key={plan.code} delay={120 + i * 90}>
+                    <div
+                      className={`h-full flex flex-col rounded-card border p-6 ${
+                        destacado
+                          ? 'border-brand-primary ring-2 ring-brand-primary/30 bg-white shadow-card'
+                          : 'border-surface-border bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-2xl font-bold text-ink">{plan.name}</h3>
+                        {destacado && (
+                          <span className="shrink-0 rounded-full bg-brand-primary px-3 py-1 text-xs font-semibold text-white">
+                            El más elegido
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-sm text-slate-600 mt-2 mb-5 min-h-[40px]">{plan.description}</p>
+
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-semibold text-ink">Bs</span>
+                        <NumberFlow
+                          value={porPago}
+                          locales="es-BO"
+                          format={{ maximumFractionDigits: 0 }}
+                          className="text-4xl font-bold text-ink"
+                        />
+                        <span className="text-slate-500 ml-1 text-sm">
+                          {activo.pagos === 1 ? '/año' : `× ${activo.pagos} pagos`}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 h-4">
+                        {activo.pagos > 1 && (
+                          <>
+                            Bs{' '}
+                            <NumberFlow value={alAnio} locales="es-BO" format={{ maximumFractionDigits: 0 }} />{' '}
+                            al año
+                          </>
+                        )}
+                      </p>
+
+                      <Link
+                        to={ctaHref}
+                        className={`mt-5 mb-6 block rounded-control py-3 text-center text-base font-semibold transition-colors ${
+                          destacado
+                            ? 'bg-brand-primary hover:bg-brand-primary-dark text-white'
+                            : 'bg-brand-navy hover:bg-ink text-white'
+                        }`}
+                      >
+                        Quiero este plan
+                      </Link>
+
+                      <div className="flex items-start gap-3 pb-5 border-b border-surface-border">
+                        <Users size={20} className="text-brand-navy mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-ink">
+                            Hasta {plan.included_members} fraternos
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {plan.max_extra_members === null
+                              ? 'Extras sin límite'
+                              : `Hasta ${plan.max_extra_members} extras`}{' '}
+                            · {plan.max_admins}{' '}
+                            {plan.max_admins === 1 ? 'administrador' : 'administradores'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <ul className="space-y-2 pt-5 mt-auto">
+                        {FUNCIONES.map((f) => {
+                          const incluida = plan.features[f.clave] === true
+                          return (
+                            <li key={f.clave} className="flex items-start gap-3">
+                              {incluida ? (
+                                <BadgeCheck size={18} className="text-brand-success mt-0.5 shrink-0" />
+                              ) : (
+                                <Minus size={18} className="text-slate-300 mt-0.5 shrink-0" />
+                              )}
+                              <span
+                                className={`text-sm ${incluida ? 'text-slate-600' : 'text-slate-400 line-through'}`}
+                              >
+                                {f.etiqueta}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  </Reveal>
+                )
+              })
+            : // Esqueleto mientras cargan: evita que la página salte de alto.
+              [0, 1, 2].map((i) => (
                 <div
-                  className={`h-full flex flex-col rounded-card border p-6 ${
-                    plan.destacado
-                      ? 'border-brand-primary ring-2 ring-brand-primary/30 bg-white shadow-card'
-                      : 'border-surface-border bg-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-2xl font-bold text-ink">{plan.nombre}</h3>
-                    {plan.destacado && (
-                      <span className="shrink-0 rounded-full bg-brand-primary px-3 py-1 text-xs font-semibold text-white">
-                        Recomendado
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-slate-600 mt-2 mb-5 min-h-[40px]">{plan.descripcion}</p>
-
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-semibold text-ink">Bs</span>
-                    <NumberFlow
-                      value={porPago}
-                      locales="es-BO"
-                      format={{ maximumFractionDigits: 0 }}
-                      className="text-4xl font-bold text-ink"
-                    />
-                    <span className="text-slate-500 ml-1 text-sm">
-                      {activo.pagos === 1 ? '/año' : `× ${activo.pagos} pagos`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 h-4">
-                    {activo.pagos > 1 && (
-                      <>
-                        Bs <NumberFlow value={alAnio} locales="es-BO" format={{ maximumFractionDigits: 0 }} />{' '}
-                        al año
-                      </>
-                    )}
-                  </p>
-
-                  <Link
-                    to={ctaHref}
-                    className={`mt-5 mb-6 block rounded-control py-3 text-center text-base font-semibold transition-colors ${
-                      plan.destacado
-                        ? 'bg-brand-primary hover:bg-brand-primary-dark text-white'
-                        : 'bg-brand-navy hover:bg-ink text-white'
-                    }`}
-                  >
-                    Quiero este plan
-                  </Link>
-
-                  <ul className="space-y-3 pb-5">
-                    {plan.caracteristicas.map((c) => (
-                      <li key={c.texto} className="flex items-start gap-3">
-                        <span className="text-brand-navy mt-0.5 shrink-0">{c.icono}</span>
-                        <span className="text-sm font-medium text-ink">{c.texto}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-auto border-t border-surface-border pt-5">
-                    <h4 className="text-sm font-semibold text-ink mb-3">{plan.incluye[0]}</h4>
-                    <ul className="space-y-2">
-                      {plan.incluye.slice(1).map((texto) => (
-                        <li key={texto} className="flex items-start gap-3">
-                          <BadgeCheck size={18} className="text-brand-success mt-0.5 shrink-0" />
-                          <span className="text-sm text-slate-600">{texto}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </Reveal>
-            )
-          })}
+                  key={i}
+                  className="h-[520px] rounded-card border border-surface-border bg-white/60 animate-pulse"
+                />
+              ))}
         </div>
 
-        <Reveal delay={400}>
-          <div className="mt-8 rounded-card border border-surface-border bg-white p-5 text-center">
-            <p className="text-sm text-slate-600">
-              ¿Son más fraternos que los del plan? Cada fraterno adicional cuesta{' '}
-              <strong className="text-ink">Bs {PRECIO_EXTRA} al año</strong>. Esencial y Plus
-              admiten hasta 5; Gold no tiene tope.
-            </p>
-            <p className="text-xs text-slate-500 mt-2">
-              Al vencer, la cuenta pasa a solo lectura: se puede seguir consultando y descargando
-              toda la información. Nunca se borra nada.
-            </p>
-          </div>
-        </Reveal>
+        {planes && (
+          <Reveal delay={400}>
+            <div className="mt-8 rounded-card border border-surface-border bg-white p-5 text-center">
+              <p className="text-sm text-slate-600">
+                ¿Son más fraternos que los del plan? Cada fraterno adicional cuesta{' '}
+                <strong className="text-ink">Bs {precioExtra} al año</strong>.
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                Al vencer, la cuenta pasa a solo lectura: se puede seguir consultando y descargando
+                toda la información. Nunca se borra nada.
+              </p>
+            </div>
+          </Reveal>
+        )}
       </div>
     </section>
   )

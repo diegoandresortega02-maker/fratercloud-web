@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import Reveal from '../components/Reveal'
+import fotoReunion from '../../assets/fotos/reunion.webp'
+import fotoTablet from '../../assets/fotos/tablet.webp'
+import fotoFraternos from '../../assets/fotos/fraternos.webp'
 import { useAuth } from '../AuthContext'
 import logoLockup from '../../assets/brand/logo-lockup.png'
 import isotipo from '../../assets/brand/isotipo.png'
@@ -294,8 +297,18 @@ export default function Landing() {
       </section>
 
       {/* Cómo funciona */}
-      <section className="bg-brand-navy">
-        <div className="max-w-5xl mx-auto px-6 py-20">
+      <section className="relative bg-brand-navy overflow-hidden">
+        {/* La foto va detrás de un velo opaco: el texto tiene que leerse sin
+            depender de qué haya en la imagen. */}
+        <img
+          src={fotoReunion}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div aria-hidden className="absolute inset-0 bg-brand-navy/85" />
+        <div className="relative max-w-5xl mx-auto px-6 py-20">
           <Reveal>
             <h2 className="text-3xl font-bold text-white text-center mb-12">Empezar es simple</h2>
           </Reveal>
@@ -327,14 +340,26 @@ export default function Landing() {
 
       {/* Perfiles */}
       <section id="perfiles" className="max-w-6xl mx-auto px-6 py-20">
-        <Reveal>
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-ink mb-3">Cada quien ve lo que le corresponde</h2>
-            <p className="text-slate-500 max-w-xl mx-auto">
-              Tres perfiles con permisos distintos, para que la información sensible quede donde tiene que estar.
-            </p>
-          </div>
-        </Reveal>
+        <div className="grid lg:grid-cols-[1fr_380px] gap-10 items-center mb-12">
+          <Reveal>
+            <div className="text-center lg:text-left">
+              <h2 className="text-3xl font-bold text-ink mb-3">Cada quien ve lo que le corresponde</h2>
+              <p className="text-slate-500 max-w-xl mx-auto lg:mx-0">
+                Tres perfiles con permisos distintos, para que la información sensible quede donde
+                tiene que estar. Y todos entran desde donde estén: es una página web, no hay nada
+                que instalar.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <img
+              src={fotoTablet}
+              alt="Un fraterno consultando su cuenta desde una tablet"
+              className="w-full h-64 lg:h-72 object-cover rounded-card shadow-card"
+              loading="lazy"
+            />
+          </Reveal>
+        </div>
         <div className="grid md:grid-cols-3 gap-5">
           {PROFILES.map((p, i) => (
             <Reveal key={p.title} delay={i * 100}>
@@ -397,17 +422,33 @@ export default function Landing() {
       </section>
 
       {/* CTA final */}
-      <section className="max-w-4xl mx-auto px-6 pb-24 text-center">
-        <Reveal>
-          <h2 className="text-3xl font-bold text-ink mb-4">Empieza a organizar tu fraternidad hoy</h2>
-          <p className="text-slate-500 mb-8">Crea tu cuenta y configura tu fraternidad en menos de dos minutos.</p>
-          <Link
-            to="/registro"
-            className="inline-block bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-8 py-3 transition-colors"
-          >
-            Crear cuenta gratis
-          </Link>
-        </Reveal>
+      <section className="relative overflow-hidden">
+        <img
+          src={fotoFraternos}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          loading="lazy"
+        />
+        {/* Degradado desde la izquierda: deja ver la escena y sostiene el texto. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-brand-navy/95 via-brand-navy/85 to-brand-navy/50"
+        />
+        <div className="relative max-w-4xl mx-auto px-6 py-24 text-center">
+          <Reveal>
+            <h2 className="text-3xl font-bold text-white mb-4">Empieza a organizar tu fraternidad hoy</h2>
+            <p className="text-slate-200 mb-8">
+              Crea tu cuenta y configura tu fraternidad en menos de dos minutos.
+            </p>
+            <Link
+              to="/registro"
+              className="inline-block bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-control px-8 py-3 transition-colors"
+            >
+              Crear cuenta gratis
+            </Link>
+          </Reveal>
+        </div>
       </section>
 
       <footer className="border-t border-surface-border">
