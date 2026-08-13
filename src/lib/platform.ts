@@ -177,12 +177,32 @@ export async function listarFraternos(fraternityId: string): Promise<FraternoDeC
   }))
 }
 
+/**
+ * Avisa por correo al administrador de la fraternidad.
+ *
+ * Nunca hace fallar la revisión: si el correo no sale, el pago igual quedó
+ * aprobado o rechazado en la base. Perder el aviso es molesto; perder la
+ * aprobación sería grave.
+ */
+async function avisarPorCorreo(paymentId: string) {
+  try {
+    const { data, error } = await supabase.functions.invoke('avisar-pago-membresia', {
+      body: { paymentId },
+    })
+    if (error) throw error
+    if (data && data.enviado === false) console.warn('Aviso no enviado:', data)
+  } catch (err) {
+    console.error('No se pudo enviar el aviso por correo', err)
+  }
+}
+
 export async function aprobarPago(id: string, notas?: string) {
   const { error } = await supabase.rpc('approve_subscription_payment', {
     p_payment_id: id,
     p_notes: notas ?? null,
   })
   if (error) throw error
+  await avisarPorCorreo(id)
 }
 
 export async function rechazarPago(id: string, notas?: string) {
@@ -191,6 +211,7 @@ export async function rechazarPago(id: string, notas?: string) {
     p_notes: notas ?? null,
   })
   if (error) throw error
+  await avisarPorCorreo(id)
 }
 
 export async function ajustarSuscripcion(args: {
