@@ -26,6 +26,54 @@ const navItems: {
   { to: '/fraternos', label: 'Fraternos', adminOnly: true },
 ]
 
+/**
+ * Avisa del vencimiento antes de que el usuario choque.
+ *
+ * Sin esto, una fraternidad vencida solo vería fallar cada intento de guardar
+ * sin entender por qué: la base bloquea la escritura, pero un 403 no explica
+ * nada. El aviso lo ve todo el mundo —el bloqueo los afecta a todos— pero solo
+ * al administrador se le dice qué hacer, porque es el único que puede pagar.
+ */
+function AvisoSuscripcion() {
+  const { subscription, fraternityUser } = useAuth()
+  if (!subscription) return null
+
+  const dias = subscription.dias_restantes ?? null
+  const vencida = !subscription.vigente
+  const porVencer = dias !== null && dias >= 0 && dias <= 30
+  if (!vencida && !porVencer) return null
+
+  const esAdmin = fraternityUser?.role === 'admin'
+
+  return (
+    <div
+      role="status"
+      className={`px-6 py-3 text-sm border-b ${
+        vencida
+          ? 'bg-brand-alert/8 border-brand-alert/25 text-brand-alert'
+          : 'bg-brand-gold/8 border-brand-gold/25 text-brand-gold'
+      }`}
+    >
+      {vencida ? (
+        <>
+          <strong>La membresía venció.</strong> Pueden seguir consultando y descargando toda
+          la información, pero no registrar movimientos nuevos hasta renovar.
+          {esAdmin && ' Subí el comprobante desde Gestión de pagos.'}
+        </>
+      ) : (
+        <>
+          <strong>
+            La membresía vence en {dias} {dias === 1 ? 'día' : 'días'}.
+          </strong>{' '}
+          {esAdmin
+            ? 'Conviene renovar antes para no interrumpir la carga de movimientos.'
+            : 'Avisale al administrador de la fraternidad.'}
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function Layout() {
   const navigate = useNavigate()
   const { fraternityUser, features } = useAuth()
@@ -128,6 +176,7 @@ export default function Layout() {
           </span>
         </div>
         <div className="flex-1 min-w-0">
+          <AvisoSuscripcion />
           <Outlet />
         </div>
       </main>

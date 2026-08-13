@@ -59,6 +59,20 @@ export async function getMyPlanFeatures(): Promise<PlanFeatures> {
   return (data as PlanFeatures) ?? {}
 }
 
+export interface SubscriptionState {
+  estado: string
+  vigente: boolean
+  vence?: string | null
+  dias_restantes?: number | null
+}
+
+/** Estado de la suscripción, para avisar antes de que una operación falle. */
+export async function getMySubscriptionState(): Promise<SubscriptionState> {
+  const { data, error } = await supabase.rpc('my_subscription_state')
+  if (error) throw error
+  return (data as SubscriptionState) ?? { estado: 'desconocido', vigente: true }
+}
+
 export type EmailAccountStatus = 'unknown' | 'has_account' | 'no_account'
 
 /** Deja constancia de un intento fallido. Nunca debe romper el flujo de login. */
