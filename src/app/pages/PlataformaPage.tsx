@@ -14,6 +14,21 @@ import {
   type PagoMembresia,
   type Plan,
 } from '../../lib/platform'
+import { getUrlComprobante } from '../../lib/membership'
+
+/**
+ * Abre el comprobante pidiendo un enlace firmado.
+ *
+ * El bucket es privado: no hay URL pública que sirva. Sin esto, aprobar un pago
+ * era aprobar a ciegas.
+ */
+async function abrirComprobante(ruta: string) {
+  try {
+    window.open(await getUrlComprobante(ruta), '_blank', 'noopener')
+  } catch (err) {
+    console.error('No se pudo abrir el comprobante', err)
+  }
+}
 
 type Pestana = 'fraternidades' | 'pagos' | 'planes' | 'resumen'
 
@@ -272,14 +287,16 @@ export default function PlataformaPage() {
                           </div>
                         </div>
                         {p.proof_url && (
-                          <a
-                            href={p.proof_url}
-                            target="_blank"
-                            rel="noreferrer"
+                          // `proof_url` guarda la RUTA dentro del bucket privado, no una URL.
+                          // Usarla como href llevaba a fratercloud.com/<ruta>, un 404: hay que
+                          // pedirle a Supabase un enlace firmado al momento de abrirlo.
+                          <button
+                            type="button"
+                            onClick={() => abrirComprobante(p.proof_url!)}
                             className="text-sm text-brand-primary hover:underline"
                           >
                             Ver comprobante
-                          </a>
+                          </button>
                         )}
                         {p.status === 'pendiente' ? (
                           <div className="flex gap-2">
