@@ -24,6 +24,7 @@ const navItems: {
   { to: '/registro-recibos', label: 'Recibos', adminOnly: true },
   { to: '/finanzas', label: 'Ingresos y egresos', adminOnly: true },
   { to: '/fraternos', label: 'Fraternos', adminOnly: true },
+  { to: '/membresia', label: 'Membresía', adminOnly: true },
 ]
 
 /**
@@ -58,7 +59,7 @@ function AvisoSuscripcion() {
         <>
           <strong>La membresía venció.</strong> Pueden seguir consultando y descargando toda
           la información, pero no registrar movimientos nuevos hasta renovar.
-          {esAdmin && ' Subí el comprobante desde Gestión de pagos.'}
+          {esAdmin && ' Renovala desde Membresía.'}
         </>
       ) : (
         <>
@@ -66,7 +67,7 @@ function AvisoSuscripcion() {
             La membresía vence en {dias} {dias === 1 ? 'día' : 'días'}.
           </strong>{' '}
           {esAdmin
-            ? 'Conviene renovar antes para no interrumpir la carga de movimientos.'
+            ? 'Renovala desde Membresía para no interrumpir la carga de movimientos.'
             : 'Avisale al administrador de la fraternidad.'}
         </>
       )}

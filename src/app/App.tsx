@@ -23,6 +23,7 @@ import PrintReceiptView from './pages/PrintReceiptView'
 import PrintMemberStatementView from './pages/PrintMemberStatementView'
 import BarPage from './pages/BarPage'
 import RecibosPage from './pages/RecibosPage'
+import MembresiaPage from './pages/MembresiaPage'
 
 function postAuthRedirect(fraternityUser: unknown, isPlatformAdmin = false) {
   if (isPlatformAdmin) return '/plataforma'
@@ -126,6 +127,7 @@ export default function App() {
         <Route path="/registro-recibos" element={<RequireAdmin><RecibosPage /></RequireAdmin>} />
         <Route path="/finanzas" element={<RequireAdmin><FinanzasPage /></RequireAdmin>} />
         <Route path="/fraternos" element={<RequireAdmin><FraternosPage /></RequireAdmin>} />
+        <Route path="/membresia" element={<RequireAdmin><MembresiaPage /></RequireAdmin>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
