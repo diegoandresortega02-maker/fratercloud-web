@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KeyRound, PlusCircle } from 'lucide-react'
 import { joinFraternityWithCode, registerFraternity, signOut } from '../../lib/auth'
+import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../AuthContext'
 import AuthCard from '../components/AuthCard'
+import { CLAVE_INVITACION } from './InvitacionPage'
 
 type Modo = 'elegir' | 'create' | 'join'
 
@@ -35,6 +37,20 @@ export default function Onboarding() {
 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  /** Nombre de la fraternidad que invitó, si se llegó por un enlace. */
+  const [invitadoA, setInvitadoA] = useState<string | null>(null)
+
+  // Si vino por un enlace de invitación, no hay nada que elegir ni que tipear:
+  // se salta directo al formulario de unirse con el código puesto.
+  useEffect(() => {
+    const guardado = localStorage.getItem(CLAVE_INVITACION)
+    if (!guardado) return
+    setInviteCode(guardado)
+    setModo('join')
+    supabase
+      .rpc('fraternity_name_for_code', { p_code: guardado })
+      .then(({ data }) => setInvitadoA((data as string) ?? null))
+  }, [])
 
   const nombreEsCodigo = pareceCodigo(fraternityName)
 
@@ -66,6 +82,7 @@ export default function Onboarding() {
     setLoading(true)
     try {
       await joinFraternityWithCode(inviteCode.trim(), memberName, birthDate || null, memberAcceptedTerms)
+      localStorage.removeItem(CLAVE_INVITACION)
       await refreshFraternityUser()
       navigate('/dashboard')
     } catch (err) {
@@ -143,8 +160,8 @@ export default function Onboarding() {
     return (
       <AuthCard
         step={{ current: 2, total: 2 }}
-        title="Unirme a mi fraternidad"
-        subtitle="Con el código que te pasó tu administrador"
+        title={invitadoA ? `Unirte a ${invitadoA}` : 'Unirme a mi fraternidad'}
+        subtitle={invitadoA ? 'Solo faltan tus datos' : 'Con el código que te pasó tu administrador'}
         footer={
           <button onClick={volver} className="text-xs text-slate-400 hover:text-slate-600">
             ← Volver
@@ -152,22 +169,28 @@ export default function Onboarding() {
         }
       >
         <form onSubmit={handleJoin} className="space-y-4">
-          <div>
-            <label htmlFor="codigo" className="block text-sm font-medium text-slate-700 mb-1">
-              Código de invitación
-            </label>
-            <input
-              id="codigo"
-              required
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              placeholder="Por ejemplo: A1B2C3D4"
-              className="w-full rounded-control border border-surface-border px-3 py-2 text-sm font-mono tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-brand-primary"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              Son 8 caracteres. Te lo da el administrador de tu fraternidad.
-            </p>
-          </div>
+          {invitadoA ? (
+            <div className="rounded-control bg-brand-primary/5 border border-brand-primary/20 px-4 py-3 text-sm text-ink">
+              Te vas a unir a <strong>{invitadoA}</strong>.
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="codigo" className="block text-sm font-medium text-slate-700 mb-1">
+                Código de invitación
+              </label>
+              <input
+                id="codigo"
+                required
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                placeholder="Por ejemplo: A1B2C3D4"
+                className="w-full rounded-control border border-surface-border px-3 py-2 text-sm font-mono tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Son 8 caracteres. Te lo da el administrador de tu fraternidad.
+              </p>
+            </div>
+          )}
           <div>
             <label htmlFor="nombre-miembro" className="block text-sm font-medium text-slate-700 mb-1">
               Tu nombre completo

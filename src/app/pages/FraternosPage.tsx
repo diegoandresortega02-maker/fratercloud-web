@@ -23,6 +23,7 @@ export default function FraternosPage() {
   const [debtThreshold, setDebtThreshold] = useState('2')
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [enlaceCopiado, setEnlaceCopiado] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editMember, setEditMember] = useState<FraternityUser | null>(null)
 
@@ -66,6 +67,22 @@ export default function FraternosPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  /** El enlace se arma con el origen real: sirve igual en producción y en local. */
+  const enlaceInvitacion = fraternity
+    ? `${window.location.origin}/unirme/${fraternity.invite_code}`
+    : ''
+
+  async function copiarEnlace() {
+    await navigator.clipboard.writeText(enlaceInvitacion)
+    setEnlaceCopiado(true)
+    setTimeout(() => setEnlaceCopiado(false), 2000)
+  }
+
+  function compartirPorWhatsApp() {
+    const texto = `Te invito a sumarte a ${fraternity?.name} en FraterCloud. Entrá acá y creá tu cuenta: ${enlaceInvitacion}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener')
+  }
+
   if (loading || !fraternity) return <p className="p-8 text-sm text-slate-400">Cargando…</p>
 
   const actives = members.filter((m) => m.status !== 'retirado')
@@ -85,8 +102,38 @@ export default function FraternosPage() {
 
       <div className="bg-white rounded-card border border-surface-border p-5 mb-6">
         <h2 className="text-sm font-semibold text-ink mb-3">{fraternity.name}</h2>
+        {/* El enlace va primero y el código quedó como respaldo: pedirle a
+            alguien que tipee 8 caracteres es pedirle que se equivoque. */}
+        <div className="rounded-control border border-brand-primary/20 bg-brand-primary/5 p-4 mb-4">
+          <p className="text-sm font-semibold text-ink mb-1">Invitá a tus fraternos</p>
+          <p className="text-xs text-slate-600 mb-3">
+            Compartí este enlace. Quien lo abra crea su cuenta y entra directo a la fraternidad,
+            sin tener que copiar ningún código.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={enlaceInvitacion}
+              onFocus={(e) => e.currentTarget.select()}
+              className="flex-1 min-w-0 rounded-control border border-surface-border bg-white px-3 py-2 text-xs font-mono"
+            />
+            <button
+              onClick={copiarEnlace}
+              className="text-xs font-medium text-white bg-brand-primary hover:bg-brand-primary-dark rounded-control px-3 py-2"
+            >
+              {enlaceCopiado ? 'Copiado' : 'Copiar enlace'}
+            </button>
+            <button
+              onClick={compartirPorWhatsApp}
+              className="text-xs font-medium text-brand-success border border-brand-success/30 hover:bg-brand-success/5 rounded-control px-3 py-2"
+            >
+              WhatsApp
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <span className="text-xs text-slate-500">Código de invitación:</span>
+          <span className="text-xs text-slate-500">O el código suelto:</span>
           <code className="text-sm font-mono bg-surface-muted px-2 py-1 rounded-control">{fraternity.invite_code}</code>
           <button onClick={handleCopyCode} className="text-xs font-medium text-brand-primary hover:underline">
             {copied ? 'Copiado' : 'Copiar'}

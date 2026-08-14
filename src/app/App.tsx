@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import Landing from './pages/Landing'
 import PreciosPage from './pages/PreciosPage'
+import InvitacionPage from './pages/InvitacionPage'
 import PlataformaPage from './pages/PlataformaPage'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -94,6 +95,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/precios" element={<PreciosPage />} />
+      {/* Sin guardia: la invitación tiene que abrirse sin sesión. */}
+      <Route path="/unirme/:codigo" element={<InvitacionPage />} />
       <Route path="/plataforma" element={<RequirePlatformAdmin><PlataformaPage /></RequirePlatformAdmin>} />
       <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
       <Route path="/registro" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
