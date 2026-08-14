@@ -7,11 +7,13 @@ import {
   listarFraternidades,
   listarFraternos,
   listarPagos,
+  listarPersonas,
   listarPlanes,
   rechazarPago,
   type FraternidadCliente,
   type FraternoDeCliente,
   type PagoMembresia,
+  type PersonaDeLaPlataforma,
   type Plan,
 } from '../../lib/platform'
 import { getUrlComprobante } from '../../lib/membership'
@@ -30,11 +32,12 @@ async function abrirComprobante(ruta: string) {
   }
 }
 
-type Pestana = 'fraternidades' | 'pagos' | 'planes' | 'resumen'
+type Pestana = 'fraternidades' | 'personas' | 'pagos' | 'planes' | 'resumen'
 
 const PESTANAS: { id: Pestana; label: string }[] = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'fraternidades', label: 'Fraternidades' },
+  { id: 'personas', label: 'Personas' },
   { id: 'pagos', label: 'Pagos' },
   { id: 'planes', label: 'Planes' },
 ]
@@ -68,6 +71,8 @@ export default function PlataformaPage() {
   const [frats, setFrats] = useState<FraternidadCliente[]>([])
   const [pagos, setPagos] = useState<PagoMembresia[]>([])
   const [planes, setPlanes] = useState<Plan[]>([])
+  const [personas, setPersonas] = useState<PersonaDeLaPlataforma[]>([])
+  const [busqueda, setBusqueda] = useState('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,10 +84,16 @@ export default function PlataformaPage() {
     setCargando(true)
     setError(null)
     try {
-      const [f, p, pl] = await Promise.all([listarFraternidades(), listarPagos(), listarPlanes()])
+      const [f, p, pl, per] = await Promise.all([
+        listarFraternidades(),
+        listarPagos(),
+        listarPlanes(),
+        listarPersonas().catch(() => []),
+      ])
       setFrats(f)
       setPagos(p)
       setPlanes(pl)
+      setPersonas(per)
     } catch (e) {
       console.error(e)
       setError(e instanceof Error ? e.message : 'No se pudo cargar la información.')
@@ -120,6 +131,12 @@ export default function PlataformaPage() {
   }
 
   const pendientes = pagos.filter((p) => p.status === 'pendiente')
+  const q = busqueda.trim().toLowerCase()
+  const personasFiltradas = q
+    ? personas.filter((p) =>
+        [p.nombre, p.email, p.fraternidad, p.telefono].some((v) => v?.toLowerCase().includes(q)),
+      )
+    : personas
   const ingresoAnual = frats
     .filter((f) => f.estado === 'activa' || f.estado === 'prueba')
     .reduce((s, f) => s + f.aCobrar, 0)
@@ -262,6 +279,76 @@ export default function PlataformaPage() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {pestana === 'personas' && (
+              <div className="rounded-card bg-white border border-surface-border overflow-hidden">
+                <div className="p-4 border-b border-surface-border flex flex-wrap gap-3 items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-ink">Personas ({personasFiltradas.length})</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Todos los fraternos de todas las fraternidades. Datos de contacto, no de plata:
+                      la deuda de cada uno es asunto interno de su fraternidad.
+                    </p>
+                  </div>
+                  <input
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar por nombre, correo o fraternidad…"
+                    className="rounded-control border border-surface-border px-3 py-2 text-sm w-full sm:w-80"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-surface-warm text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="text-left px-4 py-2">Nombre</th>
+                        <th className="text-left px-4 py-2">Fraternidad</th>
+                        <th className="text-left px-4 py-2">Correo</th>
+                        <th className="text-left px-4 py-2">Teléfono</th>
+                        <th className="text-left px-4 py-2">Cumpleaños</th>
+                        <th className="text-left px-4 py-2">Rol</th>
+                        <th className="text-left px-4 py-2">Cuenta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {personasFiltradas.map((p) => (
+                        <tr key={p.id} className="border-t border-surface-border">
+                          <td className="px-4 py-2 font-medium text-ink">{p.nombre}</td>
+                          <td className="px-4 py-2 text-slate-600">
+                            {p.fraternidad}
+                            {p.planFraternidad && (
+                              <span className="block text-xs text-slate-400">
+                                {p.planFraternidad}
+                                {p.estadoFraternidad === 'prueba' && ' · en prueba'}
+                                {p.estadoFraternidad === 'vencida' && ' · vencida'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-slate-600">{p.email ?? '—'}</td>
+                          <td className="px-4 py-2 text-slate-600">{p.telefono ?? '—'}</td>
+                          <td className="px-4 py-2 text-slate-600">{p.cumple ?? '—'}</td>
+                          <td className="px-4 py-2 text-slate-600 capitalize">{p.rol}</td>
+                          <td className="px-4 py-2">
+                            {p.tieneCuenta ? (
+                              <span className="text-xs text-brand-success">Registrado</span>
+                            ) : (
+                              <span className="text-xs text-slate-400">Sin cuenta</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {personasFiltradas.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                            No hay personas que coincidan.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

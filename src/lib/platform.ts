@@ -155,6 +155,56 @@ export async function listarPagos(): Promise<PagoMembresia[]> {
   })
 }
 
+export interface PersonaDeLaPlataforma {
+  id: string
+  nombre: string
+  email: string | null
+  telefono: string | null
+  cumple: string | null
+  rol: string
+  estado: string
+  fraternidad: string
+  planFraternidad: string | null
+  estadoFraternidad: string | null
+  tieneCuenta: boolean
+}
+
+/**
+ * Todas las personas de todas las fraternidades, en una sola lista.
+ *
+ * Es la vista comercial: sirve para contactar, no para operar. Trae el dato de
+ * contacto y a qué fraternidad pertenece cada uno, con el plan de esa
+ * fraternidad al lado — nunca su deuda ni sus pagos, que son asunto interno de
+ * cada fraternidad.
+ */
+export async function listarPersonas(): Promise<PersonaDeLaPlataforma[]> {
+  const { data, error } = await supabase
+    .from('fraternity_users')
+    .select(
+      'id, full_name, email, phone, birth_date, role, status, user_id, fraternities(name, subscriptions(status, plans(name)))',
+    )
+    .order('full_name')
+  if (error) throw error
+
+  return (data ?? []).map((u) => {
+    const f = (u as { fraternities?: { name?: string; subscriptions?: { status?: string; plans?: { name?: string } | null }[] } | null }).fraternities
+    const sus = Array.isArray(f?.subscriptions) ? f?.subscriptions?.[0] : (f?.subscriptions as { status?: string; plans?: { name?: string } | null } | undefined)
+    return {
+      id: u.id,
+      nombre: u.full_name,
+      email: u.email,
+      telefono: u.phone,
+      cumple: u.birth_date,
+      rol: u.role,
+      estado: u.status,
+      fraternidad: f?.name ?? '—',
+      planFraternidad: sus?.plans?.name ?? null,
+      estadoFraternidad: sus?.status ?? null,
+      tieneCuenta: u.user_id != null,
+    }
+  })
+}
+
 export async function listarFraternos(fraternityId: string): Promise<FraternoDeCliente[]> {
   const { data, error } = await supabase
     .from('fraternity_users')
