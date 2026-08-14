@@ -9,6 +9,7 @@ import {
   type PlanFeatures,
   type SubscriptionState,
 } from '../lib/auth'
+import { gruposHabilitados } from '../lib/grupos'
 import type { FraternityUser } from '../lib/types'
 
 interface AuthState {
@@ -20,6 +21,8 @@ interface AuthState {
   features: PlanFeatures
   /** Vigencia de la suscripción, para avisar antes de que algo falle. */
   subscription: SubscriptionState | null
+  /** Si esta fraternidad organiza a sus fraternos en grupos. */
+  groupsEnabled: boolean
   loading: boolean
   refreshFraternityUser: () => Promise<void>
 }
@@ -32,21 +35,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [features, setFeatures] = useState<PlanFeatures>({})
   const [subscription, setSubscription] = useState<SubscriptionState | null>(null)
+  const [groupsEnabled, setGroupsEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
 
   async function refreshFraternityUser() {
     // El dueño de la plataforma no tiene fila en fraternity_users, así que las
     // consultas son independientes: una sin resultado no invalida a las otras.
-    const [fu, plataforma, feats, sub] = await Promise.all([
+    const [fu, plataforma, feats, sub, grupos] = await Promise.all([
       getMyFraternityUser(),
       amIPlatformAdmin(),
       getMyPlanFeatures().catch(() => ({}) as PlanFeatures),
       getMySubscriptionState().catch(() => null),
+      gruposHabilitados().catch(() => false),
     ])
     setFraternityUser(fu)
     setIsPlatformAdmin(plataforma)
     setFeatures(feats)
     setSubscription(sub)
+    setGroupsEnabled(grupos)
   }
 
   useEffect(() => {
@@ -83,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsPlatformAdmin(false)
           setFeatures({})
           setSubscription(null)
+          setGroupsEnabled(false)
         }
       } else {
         setFraternityUser(null)
@@ -96,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, fraternityUser, isPlatformAdmin, features, subscription, loading, refreshFraternityUser }}>
+    <AuthContext.Provider value={{ session, fraternityUser, isPlatformAdmin, features, subscription, groupsEnabled, loading, refreshFraternityUser }}>
       {children}
     </AuthContext.Provider>
   )

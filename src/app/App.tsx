@@ -25,6 +25,7 @@ import PrintMemberStatementView from './pages/PrintMemberStatementView'
 import BarPage from './pages/BarPage'
 import RecibosPage from './pages/RecibosPage'
 import MembresiaPage from './pages/MembresiaPage'
+import GruposPage from './pages/GruposPage'
 
 function postAuthRedirect(fraternityUser: unknown, isPlatformAdmin = false) {
   if (isPlatformAdmin) return '/plataforma'
@@ -79,6 +80,14 @@ function RequireBar({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/** Los grupos se habilitan fraternidad por fraternidad, no por plan. */
+function RequireGrupos({ children }: { children: React.ReactNode }) {
+  const { groupsEnabled, loading } = useAuth()
+  if (loading) return <FullscreenLoader />
+  if (!groupsEnabled) return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
 function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   const { session, fraternityUser, isPlatformAdmin, loading } = useAuth()
   if (loading) return <FullscreenLoader />
@@ -123,6 +132,7 @@ export default function App() {
         <Route path="/reservas" element={<ReservasPage />} />
         <Route path="/cumpleanos" element={<CumpleanosPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
+        <Route path="/grupos" element={<RequireGrupos><GruposPage /></RequireGrupos>} />
         <Route path="/bar" element={<RequireBar><BarPage /></RequireBar>} />
         <Route path="/eventos" element={<RequireAdmin><EventosPage /></RequireAdmin>} />
         <Route path="/deudores" element={<RequireAdmin><DeudoresPage /></RequireAdmin>} />

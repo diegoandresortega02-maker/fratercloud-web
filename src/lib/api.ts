@@ -140,7 +140,7 @@ export async function createAssessment(reason: string, amount: number, dueDate: 
 export async function getTurns(fromDate: string, toDate: string): Promise<Turn[]> {
   const { data, error } = await supabase
     .from('turns')
-    .select('*, member:fraternity_users!turns_member_id_fkey(full_name), replacement:fraternity_users!turns_replacement_member_id_fkey(full_name)')
+    .select('*, member:fraternity_users!turns_member_id_fkey(full_name), replacement:fraternity_users!turns_replacement_member_id_fkey(full_name), grupo:member_groups(name)')
     .gte('date', fromDate)
     .lte('date', toDate)
     .order('date')
@@ -155,6 +155,25 @@ export async function generateTurnRotation(startDate: string, weeks: number): Pr
   })
   if (error) throw error
   return data
+}
+
+/** Rotación entre grupos: cada semana le toca a un grupo, sin responsable aún. */
+export async function generateGroupTurnRotation(startDate: string, weeks: number): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_group_turn_rotation', {
+    p_start_date: startDate,
+    p_weeks: weeks,
+  })
+  if (error) throw error
+  return data
+}
+
+/** Quién del grupo cubre ese turno. Lo puede fijar cualquier integrante. */
+export async function setTurnResponsible(turnId: string, memberId: string | null): Promise<void> {
+  const { error } = await supabase.rpc('set_turn_responsible', {
+    p_turn: turnId,
+    p_member: memberId,
+  })
+  if (error) throw error
 }
 
 export async function updateTurn(

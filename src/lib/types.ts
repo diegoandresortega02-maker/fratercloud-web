@@ -50,14 +50,18 @@ export interface FraternityUser {
 export interface Turn {
   id: string
   fraternity_id: string
-  member_id: string
+  /** Null en los turnos de grupo, hasta que el grupo designe responsable. */
+  member_id: string | null
+  /** El grupo al que le toca el turno, donde se rota por grupos. */
+  group_id: string | null
   date: string
   status: TurnStatus
   replacement_member_id: string | null
   notes: string | null
   created_at: string
-  member?: { full_name: string }
+  member?: { full_name: string } | null
   replacement?: { full_name: string } | null
+  grupo?: { name: string } | null
 }
 
 export interface MonthlyDue {

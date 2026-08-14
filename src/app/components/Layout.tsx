@@ -11,11 +11,14 @@ const navItems: {
   adminOnly?: boolean
   barOnly?: boolean
   feature?: string
+  /** Los grupos no dependen del plan sino de cómo se organiza la fraternidad. */
+  gruposOnly?: boolean
 }[] = [
   { to: '/dashboard', label: 'Inicio' },
   { to: '/pagos', label: 'Pagos' },
   { to: '/reservas', label: 'Reservas' },
   { to: '/turnos', label: 'Turnos', feature: 'turnos' },
+  { to: '/grupos', label: 'Grupos', gruposOnly: true },
   { to: '/bar', label: 'Bar', barOnly: true },
   { to: '/cumpleanos', label: 'Cumpleaños' },
   { to: '/eventos', label: 'Eventos', adminOnly: true, feature: 'eventos' },
@@ -82,7 +85,7 @@ function AvisoSuscripcion() {
 
 export default function Layout() {
   const navigate = useNavigate()
-  const { fraternityUser, features } = useAuth()
+  const { fraternityUser, features, groupsEnabled } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAdmin = fraternityUser?.role === 'admin'
   // El bar pide las dos cosas: el rol adecuado y que el plan lo incluya.
@@ -91,6 +94,7 @@ export default function Layout() {
   const visibleNavItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin) return false
     if (item.barOnly && !canSeeBar) return false
+    if (item.gruposOnly && !groupsEnabled) return false
     if (item.feature && features[item.feature] === false) return false
     return true
   })
