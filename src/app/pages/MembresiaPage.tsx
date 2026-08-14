@@ -78,15 +78,13 @@ export default function MembresiaPage() {
         getMisPagosMembresia(),
         getDatosDeCobro().catch(() => null),
       ])
-      // Se puede elegir plan mientras no haya un plan pagado y vigente: al dar
-      // de alta, durante la prueba, y cuando venció. Si no, una fraternidad en
-      // prueba sobre Gold solo podría comprar Gold.
-      if (!s || s.status === 'prueba' || s.status === 'vencida') {
-        const pl = await getPlanesDisponibles().catch(() => [])
-        setDisponibles(pl)
-        // Se preselecciona el plan que ya tiene (el de la prueba) o el del medio.
-        setElegido((e) => e ?? s?.plans?.code ?? pl[1]?.code ?? pl[0]?.code ?? null)
-      }
+      // Los planes se cargan siempre: una fraternidad que arrancó en Gold puede
+      // resultar más chica de lo que pensaba y tiene que poder bajar de plan,
+      // no solo cambiar cada cuánto paga.
+      const pl = await getPlanesDisponibles().catch(() => [])
+      setDisponibles(pl)
+      // Se preselecciona el que ya tiene, para que cambiar sea un acto deliberado.
+      setElegido((e) => e ?? s?.plans?.code ?? pl[1]?.code ?? pl[0]?.code ?? null)
       setSus(s)
       setCupo(c)
       setPagos(p)
@@ -104,10 +102,12 @@ export default function MembresiaPage() {
     cargar()
   }, [])
 
-  const puedeElegir = !sus || sus.status === 'prueba' || sus.status === 'vencida'
   const planElegido = disponibles.find((p) => p.code === elegido) ?? null
-  const plan = puedeElegir ? (planElegido ?? sus?.plans ?? null) : (sus?.plans ?? null)
-  const esAlta = puedeElegir
+  // `plan` es sobre el que se calcula el precio: el que está mirando.
+  const plan = planElegido ?? sus?.plans ?? null
+  const esAlta = true
+  // Está mirando uno distinto del que tiene contratado.
+  const cambiaDePlan = !!sus?.plans && !!planElegido && planElegido.code !== sus.plans.code
   const extras = sus?.extra_members ?? 0
   const anualTotal = plan
     ? Number(plan.price_annual) + extras * Number(plan.extra_member_price)
@@ -169,6 +169,11 @@ export default function MembresiaPage() {
                   <strong>La membresía venció.</strong> Elegí un plan y subí el comprobante para
                   volver a operar con normalidad.
                 </>
+              ) : sus ? (
+                <>
+                  <strong>Tu plan es {sus.plans?.name}.</strong> Podés cambiarlo cuando quieras: el
+                  plan nuevo entra en vigencia al aprobarse el pago.
+                </>
               ) : (
                 <>
                   <strong>Elegí el plan de tu fraternidad.</strong> Pagá y subí el comprobante;
@@ -219,7 +224,7 @@ export default function MembresiaPage() {
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div className="rounded-card border border-surface-border bg-white p-5">
               <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Plan</p>
-              <p className="text-2xl font-bold text-ink">{plan?.name ?? '—'}</p>
+              <p className="text-2xl font-bold text-ink">{sus.plans?.name ?? '—'}</p>
               <span
                 className={`inline-block mt-3 rounded-full px-3 py-1 text-xs font-semibold ${
                   ESTADOS[sus.status]?.clase ?? ''
@@ -259,7 +264,7 @@ export default function MembresiaPage() {
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="rounded-card border border-surface-border bg-white p-6">
               <h2 className="font-semibold text-ink mb-4">
-                {esAlta ? `Qué incluye ${plan.name}` : 'Qué incluye tu plan'}
+                {cambiaDePlan ? `Qué incluye ${plan.name}` : 'Qué incluye tu plan'}
               </h2>
               <ul className="space-y-2 mb-5">
                 {FUNCIONES.map((f) => {
@@ -290,7 +295,9 @@ export default function MembresiaPage() {
             </div>
 
             <div className="rounded-card border border-surface-border bg-white p-6">
-              <h2 className="font-semibold text-ink mb-1">{esAlta ? 'Activar' : 'Renovar'}</h2>
+              <h2 className="font-semibold text-ink mb-1">
+                {!sus ? 'Activar' : cambiaDePlan ? `Cambiar a ${plan.name}` : 'Renovar'}
+              </h2>
               <p className="text-sm text-slate-500 mb-4">Pagá el monto y subí el comprobante.</p>
 
               {cobro && (
@@ -371,7 +378,13 @@ export default function MembresiaPage() {
                   disabled={enviando}
                   className="w-full bg-brand-primary hover:bg-brand-primary-dark disabled:opacity-50 text-white font-medium rounded-control py-2.5 text-sm"
                 >
-                  {enviando ? 'Enviando…' : esAlta ? 'Pagar y activar' : 'Enviar comprobante'}
+                  {enviando
+                    ? 'Enviando…'
+                    : !sus
+                      ? 'Pagar y activar'
+                      : cambiaDePlan
+                        ? `Pagar ${plan.name}`
+                        : 'Enviar comprobante'}
                 </button>
               </form>
             </div>
