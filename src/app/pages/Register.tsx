@@ -12,6 +12,8 @@ export default function Register() {
   const { refreshFraternityUser } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [repetida, setRepetida] = useState('')
+  const [verPassword, setVerPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -23,6 +25,10 @@ export default function Register() {
 
     if (password.length < MIN_LARGO) {
       setError(`La contraseña debe tener al menos ${MIN_LARGO} caracteres.`)
+      return
+    }
+    if (password !== repetida) {
+      setError('Las dos contraseñas no coinciden.')
       return
     }
 
@@ -69,9 +75,24 @@ export default function Register() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+          <div className="flex items-baseline justify-between mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+              Contraseña
+            </label>
+            {/* Un solo interruptor para los dos campos: si mostrara solo uno, la
+                comprobación de que coinciden dejaría de servir para nada. */}
+            <button
+              type="button"
+              onClick={() => setVerPassword((v) => !v)}
+              className="text-xs text-slate-500 hover:text-brand-primary"
+              aria-pressed={verPassword}
+            >
+              {verPassword ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
           <input
-            type="password"
+            id="password"
+            type={verPassword ? 'text' : 'password'}
             autoComplete="new-password"
             required
             minLength={MIN_LARGO}
@@ -80,6 +101,34 @@ export default function Register() {
             className="w-full rounded-control border border-surface-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
           />
           <p className="mt-1 text-xs text-slate-500">Al menos {MIN_LARGO} caracteres.</p>
+        </div>
+
+        <div>
+          <label htmlFor="repetida" className="block text-sm font-medium text-slate-700 mb-1">
+            Repetí la contraseña
+          </label>
+          <input
+            id="repetida"
+            type={verPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            required
+            value={repetida}
+            onChange={(e) => setRepetida(e.target.value)}
+            aria-invalid={repetida.length > 0 && password !== repetida}
+            className={`w-full rounded-control border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+              repetida.length > 0 && password !== repetida
+                ? 'border-brand-alert focus:ring-brand-alert'
+                : 'border-surface-border focus:ring-brand-primary'
+            }`}
+          />
+          {/* Se avisa mientras escribe, no al enviar: descubrir el error después
+              de darle al botón obliga a reescribir las dos. */}
+          {repetida.length > 0 && password !== repetida && (
+            <p className="mt-1 text-xs text-brand-alert">Todavía no coinciden.</p>
+          )}
+          {repetida.length > 0 && password === repetida && (
+            <p className="mt-1 text-xs text-brand-success">Coinciden.</p>
+          )}
         </div>
         {error && (
           <p role="alert" className="text-sm text-brand-alert bg-brand-alert/5 rounded-control px-3 py-2">
