@@ -4,17 +4,20 @@ import { signOut } from '../../lib/auth'
 import { formatMoney } from '../../lib/money'
 import {
   aprobarPago,
+  borrarFraternidad,
   listarFraternidades,
   listarFraternos,
   listarPagos,
   listarPersonas,
   listarPlanes,
+  previoBorrado,
   rechazarPago,
   type FraternidadCliente,
   type FraternoDeCliente,
   type PagoMembresia,
   type PersonaDeLaPlataforma,
   type Plan,
+  type ResumenBorrado,
 } from '../../lib/platform'
 import { getUrlComprobante } from '../../lib/membership'
 
@@ -79,6 +82,8 @@ export default function PlataformaPage() {
   const [abierta, setAbierta] = useState<FraternidadCliente | null>(null)
   const [fraternos, setFraternos] = useState<FraternoDeCliente[]>([])
   const [cargandoFraternos, setCargandoFraternos] = useState(false)
+  const [aBorrar, setABorrar] = useState<FraternidadCliente | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   async function cargar() {
     setCargando(true)
@@ -189,6 +194,11 @@ export default function PlataformaPage() {
             {error}
           </p>
         )}
+        {aviso && (
+          <p role="status" className="mb-4 rounded-control bg-brand-success/10 px-4 py-3 text-sm text-brand-success">
+            {aviso}
+          </p>
+        )}
         {cargando ? (
           <p className="text-slate-500 text-sm">Cargando…</p>
         ) : (
@@ -269,12 +279,18 @@ export default function PlataformaPage() {
                           <td className="px-4 py-3 text-right font-semibold text-ink">
                             Bs {formatMoney(f.aCobrar)}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
                             <button
                               onClick={() => abrirFraternidad(f)}
                               className="text-brand-primary hover:underline"
                             >
                               Ver fraternos
+                            </button>
+                            <button
+                              onClick={() => setABorrar(f)}
+                              className="ml-3 text-slate-400 hover:text-brand-alert"
+                            >
+                              Eliminar
                             </button>
                           </td>
                         </tr>
@@ -476,6 +492,22 @@ export default function PlataformaPage() {
         )}
       </main>
 
+      {aBorrar && (
+        <ModalBorrar
+          fraternidad={aBorrar}
+          onCerrar={() => setABorrar(null)}
+          onBorrada={(resumen) => {
+            setABorrar(null)
+            setAviso(
+              `Se eliminó ${resumen.nombre}. ${resumen.con_cuenta} ${
+                resumen.con_cuenta === 1 ? 'cuenta quedó libre' : 'cuentas quedaron libres'
+              } para unirse a otra fraternidad.`,
+            )
+            cargar()
+          }}
+        />
+      )}
+
       {abierta && (
         <div
           className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4"
@@ -536,6 +568,143 @@ export default function PlataformaPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Confirmación de borrado.
+ *
+ * Muestra primero qué se va a destruir y recién después pide el nombre escrito
+ * a mano. Un "¿estás seguro?" se acepta sin leer; una lista con 27 fraternos y
+ * 140 movimientos, no.
+ */
+function ModalBorrar({
+  fraternidad,
+  onCerrar,
+  onBorrada,
+}: {
+  fraternidad: FraternidadCliente
+  onCerrar: () => void
+  onBorrada: (resumen: ResumenBorrado) => void
+}) {
+  const [previo, setPrevio] = useState<ResumenBorrado | null>(null)
+  const [escrito, setEscrito] = useState('')
+  const [borrando, setBorrando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    previoBorrado(fraternidad.id)
+      .then(setPrevio)
+      .catch((e) => {
+        console.error(e)
+        setError('No se pudo leer qué contiene esta fraternidad.')
+      })
+  }, [fraternidad.id])
+
+  const coincide = escrito.trim().toLowerCase() === fraternidad.nombre.trim().toLowerCase()
+
+  async function confirmar() {
+    setError(null)
+    setBorrando(true)
+    try {
+      onBorrada(await borrarFraternidad(fraternidad.id, escrito))
+    } catch (e) {
+      console.error(e)
+      const msg = e instanceof Error ? e.message : ''
+      setError(
+        /name_mismatch/.test(msg)
+          ? 'El nombre no coincide.'
+          : /not_authorized/.test(msg)
+            ? 'Tu sesión no tiene permiso para esto.'
+            : 'No se pudo eliminar la fraternidad.',
+      )
+      setBorrando(false)
+    }
+  }
+
+  const filas: [string, number][] = previo
+    ? [
+        ['Fraternos', previo.fraternos],
+        ['Movimientos de plata', previo.movimientos],
+        ['Mensualidades', previo.mensualidades],
+        ['Recibos emitidos', previo.recibos],
+        ['Reservas', previo.reservas],
+        ['Pagos de membresía', previo.pagos_membresia],
+        ['Comprobantes subidos', previo.comprobantes],
+      ].filter(([, n]) => (n as number) > 0) as [string, number][]
+    : []
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-card w-full max-w-md p-6">
+        <h2 className="text-lg font-bold text-ink">Eliminar {fraternidad.nombre}</h2>
+        <p className="text-sm text-slate-600 mt-1">
+          Esto borra la fraternidad y todo lo que tenga adentro. No se puede deshacer.
+        </p>
+
+        {previo === null && !error ? (
+          <p className="text-sm text-slate-500 mt-4">Revisando qué contiene…</p>
+        ) : (
+          previo && (
+            <>
+              {filas.length > 0 ? (
+                <dl className="mt-4 rounded-control bg-brand-alert/5 border border-brand-alert/20 px-4 py-3 text-sm space-y-1">
+                  {filas.map(([etiqueta, n]) => (
+                    <div key={etiqueta} className="flex justify-between">
+                      <dt className="text-slate-600">{etiqueta}</dt>
+                      <dd className="font-semibold text-brand-alert">{n}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-4 rounded-control bg-surface-warm px-4 py-3 text-sm text-slate-600">
+                  Está vacía: no tiene movimientos, recibos ni reservas.
+                </p>
+              )}
+
+              {previo.con_cuenta > 0 && (
+                <p className="mt-3 text-sm text-slate-600">
+                  {previo.con_cuenta === 1
+                    ? 'La cuenta de su fraterno no se borra: va a poder entrar'
+                    : `Las cuentas de sus ${previo.con_cuenta} fraternos no se borran: van a poder entrar`}{' '}
+                  con el mismo correo y unirse a la fraternidad que corresponda.
+                </p>
+              )}
+
+              <label htmlFor="confirmar-nombre" className="block text-sm font-medium text-slate-700 mt-5 mb-1">
+                Escribí <strong className="text-ink">{fraternidad.nombre}</strong> para confirmar
+              </label>
+              <input
+                id="confirmar-nombre"
+                value={escrito}
+                onChange={(e) => setEscrito(e.target.value)}
+                autoComplete="off"
+                className="w-full rounded-control border border-surface-border px-3 py-2 text-sm"
+              />
+            </>
+          )
+        )}
+
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-brand-alert">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onCerrar} className="rounded-control px-3 py-2 text-sm text-slate-500">
+            Cancelar
+          </button>
+          <button
+            onClick={confirmar}
+            disabled={!coincide || borrando}
+            className="rounded-control bg-brand-alert px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          >
+            {borrando ? 'Eliminando…' : 'Eliminar definitivamente'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -264,6 +264,58 @@ export async function rechazarPago(id: string, notas?: string) {
   await avisarPorCorreo(id)
 }
 
+export interface ResumenBorrado {
+  nombre: string
+  creada: string
+  fraternos: number
+  con_cuenta: number
+  movimientos: number
+  mensualidades: number
+  recibos: number
+  reservas: number
+  pagos_membresia: number
+  comprobantes: number
+  /** Rutas dentro del bucket, para borrarlas con la Storage API. */
+  archivos: string[]
+}
+
+/** Qué se perdería si se borra. Se consulta antes de mostrar la confirmación. */
+export async function previoBorrado(fraternityId: string): Promise<ResumenBorrado> {
+  const { data, error } = await supabase.rpc('fraternity_delete_preview', { p_id: fraternityId })
+  if (error) throw error
+  return data as ResumenBorrado
+}
+
+/**
+ * Borra la fraternidad y todo lo suyo. No hay deshacer.
+ *
+ * Las cuentas de sus fraternos sobreviven: quedan sin fraternidad y al entrar
+ * caen en el alta, que es justo lo que se necesita cuando alguien creó una
+ * fraternidad por error en vez de unirse a la suya.
+ */
+export async function borrarFraternidad(
+  fraternityId: string,
+  nombreEscrito: string,
+): Promise<ResumenBorrado> {
+  const previo = await previoBorrado(fraternityId)
+
+  // Los comprobantes se borran antes y por la Storage API: Supabase no deja
+  // tocar storage.objects por SQL, y una vez borrada la fraternidad ya no
+  // habría cómo saber qué archivos eran suyos.
+  if (previo.archivos.length > 0) {
+    const { error } = await supabase.storage.from('payment-proofs').remove(previo.archivos)
+    // Un archivo que queda no justifica dejar la fraternidad a medio borrar.
+    if (error) console.error('No se pudieron borrar los comprobantes', error)
+  }
+
+  const { data, error } = await supabase.rpc('delete_fraternity', {
+    p_id: fraternityId,
+    p_confirm_name: nombreEscrito,
+  })
+  if (error) throw error
+  return data as ResumenBorrado
+}
+
 export async function ajustarSuscripcion(args: {
   fraternityId: string
   planCode: string
