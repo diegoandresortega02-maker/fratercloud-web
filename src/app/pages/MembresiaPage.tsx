@@ -78,11 +78,14 @@ export default function MembresiaPage() {
         getMisPagosMembresia(),
         getDatosDeCobro().catch(() => null),
       ])
-      // Si todavía no hay suscripción, hay que poder elegir un plan.
-      if (!s) {
+      // Se puede elegir plan mientras no haya un plan pagado y vigente: al dar
+      // de alta, durante la prueba, y cuando venció. Si no, una fraternidad en
+      // prueba sobre Gold solo podría comprar Gold.
+      if (!s || s.status === 'prueba' || s.status === 'vencida') {
         const pl = await getPlanesDisponibles().catch(() => [])
         setDisponibles(pl)
-        setElegido((e) => e ?? pl[1]?.code ?? pl[0]?.code ?? null)
+        // Se preselecciona el plan que ya tiene (el de la prueba) o el del medio.
+        setElegido((e) => e ?? s?.plans?.code ?? pl[1]?.code ?? pl[0]?.code ?? null)
       }
       setSus(s)
       setCupo(c)
@@ -101,9 +104,10 @@ export default function MembresiaPage() {
     cargar()
   }, [])
 
+  const puedeElegir = !sus || sus.status === 'prueba' || sus.status === 'vencida'
   const planElegido = disponibles.find((p) => p.code === elegido) ?? null
-  const plan = sus?.plans ?? planElegido
-  const esAlta = !sus
+  const plan = puedeElegir ? (planElegido ?? sus?.plans ?? null) : (sus?.plans ?? null)
+  const esAlta = puedeElegir
   const extras = sus?.extra_members ?? 0
   const anualTotal = plan
     ? Number(plan.price_annual) + extras * Number(plan.extra_member_price)
@@ -155,8 +159,22 @@ export default function MembresiaPage() {
         <div className="mb-6">
           <div className="rounded-card border border-brand-primary/30 bg-brand-primary/5 p-4 mb-5">
             <p className="text-sm text-ink">
-              <strong>Elegí el plan de tu fraternidad.</strong> Pagá y subí el comprobante; cuando
-              lo aprobemos queda activo.
+              {sus?.status === 'prueba' ? (
+                <>
+                  <strong>Estás en el período de prueba.</strong> Probá todo el sistema y elegí el
+                  plan que mejor te sirva. Pagá y subí el comprobante; al aprobarlo queda activo.
+                </>
+              ) : sus?.status === 'vencida' ? (
+                <>
+                  <strong>La membresía venció.</strong> Elegí un plan y subí el comprobante para
+                  volver a operar con normalidad.
+                </>
+              ) : (
+                <>
+                  <strong>Elegí el plan de tu fraternidad.</strong> Pagá y subí el comprobante;
+                  cuando lo aprobemos queda activo.
+                </>
+              )}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-4">

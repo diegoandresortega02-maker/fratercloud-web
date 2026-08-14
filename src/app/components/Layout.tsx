@@ -45,6 +45,7 @@ function AvisoSuscripcion() {
   if (!vencida && !porVencer) return null
 
   const esAdmin = fraternityUser?.role === 'admin'
+  const enPrueba = subscription.estado === 'prueba'
 
   return (
     <div
@@ -64,10 +65,14 @@ function AvisoSuscripcion() {
       ) : (
         <>
           <strong>
-            La membresía vence en {dias} {dias === 1 ? 'día' : 'días'}.
+            {enPrueba
+              ? `Te ${dias === 1 ? 'queda' : 'quedan'} ${dias} ${dias === 1 ? 'día' : 'días'} de prueba.`
+              : `La membresía vence en ${dias} ${dias === 1 ? 'día' : 'días'}.`}
           </strong>{' '}
           {esAdmin
-            ? 'Renovala desde Membresía para no interrumpir la carga de movimientos.'
+            ? enPrueba
+              ? 'Elegí tu plan desde Membresía para seguir usando el sistema sin interrupciones.'
+              : 'Renovala desde Membresía para no interrumpir la carga de movimientos.'
             : 'Avisale al administrador de la fraternidad.'}
         </>
       )}
