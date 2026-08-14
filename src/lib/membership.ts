@@ -71,6 +71,17 @@ export interface CupoFraternos {
   activos: number
 }
 
+/** Los planes públicos, para que una fraternidad nueva pueda elegir uno. */
+export async function getPlanesDisponibles(): Promise<MiPlan[]> {
+  const { data, error } = await supabase
+    .from('plans')
+    .select('code,name,description,price_annual,included_members,extra_member_price,max_extra_members,max_admins,features')
+    .eq('is_public', true)
+    .order('sort_order')
+  if (error) throw error
+  return (data ?? []) as MiPlan[]
+}
+
 /** Solo el administrador puede leerla: la política RLS lo exige. */
 export async function getMiSuscripcion(): Promise<MiSuscripcion | null> {
   const { data, error } = await supabase
@@ -109,6 +120,7 @@ export async function registrarPagoMembresia(
   monto: number,
   ciclo: BillingCycle,
   archivo: File | null,
+  planCode?: string,
 ): Promise<void> {
   const { data: frat } = await supabase.from('fraternities').select('id').maybeSingle()
   if (!frat) throw new Error('No se pudo identificar la fraternidad')
@@ -122,14 +134,21 @@ export async function registrarPagoMembresia(
     proofUrl = path
   }
 
-  const { data: plan } = await supabase
-    .from('subscriptions')
-    .select('plan_id')
-    .maybeSingle()
+  // El plan que se está pagando: el elegido si es un alta, o el vigente si es
+  // una renovación. Va guardado en el pago porque es lo que la aprobación usa
+  // para crear o actualizar la suscripción.
+  let planId: string | null = null
+  if (planCode) {
+    const { data: p } = await supabase.from('plans').select('id').eq('code', planCode).maybeSingle()
+    planId = p?.id ?? null
+  } else {
+    const { data: sus } = await supabase.from('subscriptions').select('plan_id').maybeSingle()
+    planId = sus?.plan_id ?? null
+  }
 
   const { error } = await supabase.from('subscription_payments').insert({
     fraternity_id: frat.id,
-    plan_id: plan?.plan_id ?? null,
+    plan_id: planId,
     amount: monto,
     cycle: ciclo,
     proof_url: proofUrl,

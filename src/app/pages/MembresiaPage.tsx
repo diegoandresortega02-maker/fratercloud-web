@@ -5,6 +5,7 @@ import {
   getDatosDeCobro,
   getMiSuscripcion,
   getMisPagosMembresia,
+  getPlanesDisponibles,
   getUrlComprobante,
   importePorPago,
   registrarPagoMembresia,
@@ -12,6 +13,7 @@ import {
   type BillingCycle,
   type CupoFraternos,
   type DatosDeCobro,
+  type MiPlan,
   type MiSuscripcion,
   type PagoMembresia,
 } from '../../lib/membership'
@@ -58,6 +60,8 @@ export default function MembresiaPage() {
   const [cupo, setCupo] = useState<CupoFraternos | null>(null)
   const [pagos, setPagos] = useState<PagoMembresia[]>([])
   const [cobro, setCobro] = useState<DatosDeCobro | null>(null)
+  const [disponibles, setDisponibles] = useState<MiPlan[]>([])
+  const [elegido, setElegido] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -74,6 +78,12 @@ export default function MembresiaPage() {
         getMisPagosMembresia(),
         getDatosDeCobro().catch(() => null),
       ])
+      // Si todavía no hay suscripción, hay que poder elegir un plan.
+      if (!s) {
+        const pl = await getPlanesDisponibles().catch(() => [])
+        setDisponibles(pl)
+        setElegido((e) => e ?? pl[1]?.code ?? pl[0]?.code ?? null)
+      }
       setSus(s)
       setCupo(c)
       setPagos(p)
@@ -91,7 +101,9 @@ export default function MembresiaPage() {
     cargar()
   }, [])
 
-  const plan = sus?.plans ?? null
+  const planElegido = disponibles.find((p) => p.code === elegido) ?? null
+  const plan = sus?.plans ?? planElegido
+  const esAlta = !sus
   const extras = sus?.extra_members ?? 0
   const anualTotal = plan
     ? Number(plan.price_annual) + extras * Number(plan.extra_member_price)
@@ -104,9 +116,13 @@ export default function MembresiaPage() {
     setAviso(null)
     setEnviando(true)
     try {
-      await registrarPagoMembresia(aPagar, ciclo, archivo)
+      await registrarPagoMembresia(aPagar, ciclo, archivo, esAlta ? (elegido ?? undefined) : undefined)
       setArchivo(null)
-      setAviso('Comprobante enviado. Lo vamos a revisar y te avisamos al aprobarlo.')
+      setAviso(
+        esAlta
+          ? 'Comprobante enviado. Al aprobarlo activamos el plan y te avisamos por correo.'
+          : 'Comprobante enviado. Lo vamos a revisar y te avisamos por correo al aprobarlo.',
+      )
       await cargar()
     } catch (err) {
       console.error(err)
@@ -135,12 +151,53 @@ export default function MembresiaPage() {
         fraternos.
       </p>
 
-      {!sus ? (
-        <div className="rounded-card border border-surface-border bg-white p-6 text-sm text-slate-600">
-          Tu fraternidad todavía no tiene una membresía asignada. Escribinos y la activamos.
+      {esAlta && (
+        <div className="mb-6">
+          <div className="rounded-card border border-brand-primary/30 bg-brand-primary/5 p-4 mb-5">
+            <p className="text-sm text-ink">
+              <strong>Elegí el plan de tu fraternidad.</strong> Pagá y subí el comprobante; cuando
+              lo aprobemos queda activo.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {disponibles.map((pl) => {
+              const activo = pl.code === elegido
+              return (
+                <button
+                  key={pl.code}
+                  type="button"
+                  onClick={() => setElegido(pl.code)}
+                  aria-pressed={activo}
+                  className={`text-left rounded-card border p-5 transition-colors ${
+                    activo
+                      ? 'border-brand-primary ring-2 ring-brand-primary/30 bg-white'
+                      : 'border-surface-border bg-white hover:border-brand-primary/40'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <span className="text-lg font-bold text-ink">{pl.name}</span>
+                    {activo && (
+                      <span className="rounded-full bg-brand-primary px-2 py-0.5 text-xs font-semibold text-white">
+                        Elegido
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">{pl.description}</p>
+                  <p className="text-xl font-bold text-ink">
+                    Bs {formatMoney(pl.price_annual)}
+                    <span className="text-sm font-medium text-slate-400"> /año</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">Hasta {pl.included_members} fraternos</p>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      ) : (
+      )}
+
+      {plan && (
         <>
+          {sus && (
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div className="rounded-card border border-surface-border bg-white p-5">
               <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Plan</p>
@@ -179,10 +236,13 @@ export default function MembresiaPage() {
               )}
             </div>
           </div>
+          )}
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="rounded-card border border-surface-border bg-white p-6">
-              <h2 className="font-semibold text-ink mb-4">Qué incluye tu plan</h2>
+              <h2 className="font-semibold text-ink mb-4">
+                {esAlta ? `Qué incluye ${plan.name}` : 'Qué incluye tu plan'}
+              </h2>
               <ul className="space-y-2 mb-5">
                 {FUNCIONES.map((f) => {
                   const si = plan?.features?.[f.clave] === true
@@ -212,10 +272,8 @@ export default function MembresiaPage() {
             </div>
 
             <div className="rounded-card border border-surface-border bg-white p-6">
-              <h2 className="font-semibold text-ink mb-1">Renovar</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                Pagá el monto y subí el comprobante.
-              </p>
+              <h2 className="font-semibold text-ink mb-1">{esAlta ? 'Activar' : 'Renovar'}</h2>
+              <p className="text-sm text-slate-500 mb-4">Pagá el monto y subí el comprobante.</p>
 
               {cobro && (
                 <div className="mb-5 rounded-control border border-surface-border bg-surface-warm p-4">
@@ -295,7 +353,7 @@ export default function MembresiaPage() {
                   disabled={enviando}
                   className="w-full bg-brand-primary hover:bg-brand-primary-dark disabled:opacity-50 text-white font-medium rounded-control py-2.5 text-sm"
                 >
-                  {enviando ? 'Enviando…' : 'Enviar comprobante'}
+                  {enviando ? 'Enviando…' : esAlta ? 'Pagar y activar' : 'Enviar comprobante'}
                 </button>
               </form>
             </div>
