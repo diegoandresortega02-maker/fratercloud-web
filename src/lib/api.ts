@@ -148,23 +148,48 @@ export async function getTurns(fromDate: string, toDate: string): Promise<Turn[]
   return data
 }
 
-export async function generateTurnRotation(startDate: string, weeks: number): Promise<number> {
-  const { data, error } = await supabase.rpc('generate_turn_rotation', {
-    p_start_date: startDate,
-    p_weeks: weeks,
-  })
-  if (error) throw error
-  return data
+/** Un turno a crear: o le toca a un fraterno, o le toca a un grupo. */
+export interface NuevoTurno {
+  date: string
+  member_id?: string | null
+  group_id?: string | null
+  notes?: string | null
 }
 
-/** Rotación entre grupos: cada semana le toca a un grupo, sin responsable aún. */
-export async function generateGroupTurnRotation(startDate: string, weeks: number): Promise<number> {
-  const { data, error } = await supabase.rpc('generate_group_turn_rotation', {
-    p_start_date: startDate,
-    p_weeks: weeks,
-  })
+/**
+ * Crea turnos, de a uno o de a muchos.
+ *
+ * El calendario se arma en la pantalla y se guarda tal cual se ve: no hay un
+ * generador en el servidor decidiendo por su cuenta a quién le toca cada fecha.
+ */
+export async function crearTurnos(turnos: NuevoTurno[]): Promise<number> {
+  const { data: frat } = await supabase.from('fraternities').select('id').maybeSingle()
+  if (!frat) throw new Error('No se pudo identificar la fraternidad')
+
+  const { data, error } = await supabase
+    .from('turns')
+    .insert(
+      turnos.map((t) => ({
+        fraternity_id: frat.id,
+        date: t.date,
+        member_id: t.member_id ?? null,
+        group_id: t.group_id ?? null,
+        notes: t.notes ?? null,
+      })),
+    )
+    .select('id')
   if (error) throw error
-  return data
+  return data?.length ?? 0
+}
+
+/** Mover un turno de fecha. Si el día está tomado, los dos se intercambian. */
+export async function moverTurno(
+  turnId: string,
+  fecha: string,
+): Promise<{ intercambio: boolean; con?: string }> {
+  const { data, error } = await supabase.rpc('move_turn', { p_turn: turnId, p_date: fecha })
+  if (error) throw error
+  return data as { intercambio: boolean; con?: string }
 }
 
 /** Quién del grupo cubre ese turno. Lo puede fijar cualquier integrante. */
@@ -178,7 +203,12 @@ export async function setTurnResponsible(turnId: string, memberId: string | null
 
 export async function updateTurn(
   turnId: string,
-  input: { status?: TurnStatus; replacement_member_id?: string | null; notes?: string | null },
+  input: {
+    status?: TurnStatus
+    member_id?: string | null
+    replacement_member_id?: string | null
+    notes?: string | null
+  },
 ) {
   const { error } = await supabase.from('turns').update(input).eq('id', turnId)
   if (error) throw error
